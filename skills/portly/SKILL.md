@@ -25,19 +25,19 @@ Install globally (recommended) or as a project dev dependency. Do NOT use `npx` 
 
 ```bash
 # Global (available everywhere)
-npm install -g portly
+npm install -g @guthyerrz/portly
 
 # Or per-project dev dependency
-npm install -D portly
+npm install -D @guthyerrz/portly
 ```
 
-When installed per-project, invoke via package.json scripts or `npx portly` (since the package is local, npx will not download anything).
+When installed per-project, invoke via package.json scripts or `npx @guthyerrz/portly` (since the package is local, npx will not download anything).
 
 ## Quick Start
 
 ```bash
 # Install globally (or add -D to a project)
-npm install -g portly
+npm install -g @guthyerrz/portly
 
 # Run your app (auto-starts the HTTPS proxy on port 443)
 portly run next dev

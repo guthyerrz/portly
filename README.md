@@ -12,14 +12,22 @@ Replace port numbers with stable, named .localhost URLs for local development. F
 **Global (recommended):**
 
 ```bash
-npm install -g portly
+npm install -g @guthyerrz/portly
 ```
 
 **Or as a project dev dependency:**
 
 ```bash
-npm install -D portly
+npm install -D @guthyerrz/portly
 ```
+
+**Or straight from a GitHub Release tarball (no registry needed):**
+
+```bash
+npm install -g https://github.com/guthyerrz/portly/releases/download/v0.14.0/portly-0.14.0.tgz
+```
+
+Every release publishes `@guthyerrz/portly` to npm and attaches a `portly-<version>.tgz` to the matching [GitHub Release](https://github.com/guthyerrz/portly/releases). The binary is `portly` either way.
 
 > portly is pre-1.0. When installed per-project, different contributors may run different versions. The state directory format may change between releases, which can require re-running `portly trust`.
 

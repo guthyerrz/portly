@@ -40,7 +40,7 @@ Since you own `ctate.dev`, nothing under `local.ctate.dev` will conflict with re
 ### 1. Install portly
 
 ```bash
-npm install -g portly
+npm install -g @guthyerrz/portly
 ```
 
 ### 2. Start the proxy

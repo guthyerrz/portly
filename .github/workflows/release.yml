@@ -34,7 +34,7 @@ jobs:
           LOCAL_VERSION=$(node -p "require('./packages/portly/package.json').version")
           echo "Local version: $LOCAL_VERSION"
 
-          NPM_VERSION=$(npm view portly version 2>/dev/null || echo "0.0.0")
+          NPM_VERSION=$(npm view @guthyerrz/portly version 2>/dev/null || echo "0.0.0")
           echo "npm version: $NPM_VERSION"
 
           if [ "$LOCAL_VERSION" != "$NPM_VERSION" ]; then
@@ -112,6 +112,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js cache
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Pack tarball
+        id: pack
+        working-directory: packages/portly
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          cp ../../README.md .
+          npm pack
+          # npm flattens the scope: @guthyerrz/portly -> guthyerrz-portly-<ver>.tgz
+          SRC=$(ls guthyerrz-portly-*.tgz | head -1)
+          DEST="portly-$VERSION.tgz"
+          mv "$SRC" "$DEST"
+          echo "tarball=packages/portly/$DEST" >> "$GITHUB_OUTPUT"
+
       - name: Extract changelog entry
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
@@ -119,23 +152,26 @@ jobs:
 
           LINES=$(wc -l < /tmp/release-notes.md | tr -d ' ')
           if [ "$LINES" -lt 2 ]; then
-            echo "Error: No release notes found between <!-- release:start --> and <!-- release:end --> markers in CHANGELOG.md"
-            exit 1
+            echo "No changelog entry found; will fall back to auto-generated notes."
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "Extracted release notes for $VERSION ($LINES lines)"
+        id: notes
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
           TAG="v$VERSION"
+          TARBALL="${{ steps.pack.outputs.tarball }}"
 
           if gh release view "$TAG" &>/dev/null; then
-            echo "Release $TAG already exists, skipping"
+            echo "Release $TAG exists; attaching tarball"
+            gh release upload "$TAG" "$TARBALL" --clobber
+          elif [ "${{ steps.notes.outputs.has_notes }}" = "true" ]; then
+            gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md "$TARBALL"
           else
-            echo "Creating release $TAG..."
-            gh release create "$TAG" \
-              --title "$TAG" \
-              --notes-file /tmp/release-notes.md
+            gh release create "$TAG" --title "$TAG" --generate-notes "$TARBALL"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

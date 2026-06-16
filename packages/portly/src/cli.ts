@@ -360,7 +360,7 @@ function getEntryScript(): string {
 /**
  * Check whether portly is installed as a project dependency by walking
  * up from cwd looking for node_modules/portly. Used to distinguish a
- * local `npx portly` (allowed) from a one-off download (blocked).
+ * local `npx @guthyerrz/portly` (allowed) from a one-off download (blocked).
  */
 function isLocallyInstalled(): boolean {
   let dir = process.cwd();
@@ -1778,8 +1778,8 @@ Eliminates port conflicts, memorizing port numbers, and cookie/storage
 clashes by giving each dev server a stable .localhost URL.
 
 ${colors.bold("Install:")}
-  ${colors.cyan("npm install -g portly")}          Global (recommended)
-  ${colors.cyan("npm install -D portly")}          Project dev dependency
+  ${colors.cyan("npm install -g @guthyerrz/portly")}          Global (recommended)
+  ${colors.cyan("npm install -D @guthyerrz/portly")}          Project dev dependency
 
 ${colors.bold("Requirements:")}
   Node.js 24+
@@ -4186,8 +4186,8 @@ async function main() {
   if ((isNpx || isPnpmDlx) && !isLocallyInstalled()) {
     console.error(colors.red("Error: portly should not be run via npx or pnpm dlx."));
     console.error(colors.blue("Install globally or as a project dependency:"));
-    console.error(colors.cyan("  npm install -g portly"));
-    console.error(colors.cyan("  npm install -D portly"));
+    console.error(colors.cyan("  npm install -g @guthyerrz/portly"));
+    console.error(colors.cyan("  npm install -D @guthyerrz/portly"));
     process.exit(1);
   }
 
