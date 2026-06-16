@@ -17,7 +17,7 @@ const OUTPUT_BUFFER_LIMIT = 16_384;
 const TUNNEL_NAME_PREFIX = "portly-";
 
 const LOGIN_HINT =
-  "Not logged in to Cloudflare. Run `portless tunnel login` to authorize a domain, " +
+  "Not logged in to Cloudflare. Run `portly tunnel login` to authorize a domain, " +
   "then try again.";
 
 interface CloudflaredCommandResult {
@@ -126,7 +126,7 @@ export function loginCloudflared(options: { certPath?: string } = {}): { certPat
   if (result.status !== 0) {
     throw new Error(
       `cloudflared login exited with code ${result.status ?? "unknown"}. ` +
-        "Re-run `portless tunnel login` to authorize a domain."
+        "Re-run `portly tunnel login` to authorize a domain."
     );
   }
   if (!isLoggedIn(certPath)) {
@@ -263,7 +263,7 @@ export function ensureDnsRoute(
     ) {
       throw new Error(
         `Cloudflare has no authorized zone for ${hostname}. ` +
-          "Run `portless tunnel login` and select the domain that owns this hostname."
+          "Run `portly tunnel login` and select the domain that owns this hostname."
       );
     }
     throw new Error(`Failed to route ${hostname} to the tunnel: ${details || "unknown error"}`);

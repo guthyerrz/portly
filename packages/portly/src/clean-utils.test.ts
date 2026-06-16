@@ -2,30 +2,30 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { collectStateDirsForCleanup, removePortlessStateFiles } from "./clean-utils.js";
+import { collectStateDirsForCleanup, removePortlyStateFiles } from "./clean-utils.js";
 
 describe("collectStateDirsForCleanup", () => {
-  const prevState = process.env.PORTLESS_STATE_DIR;
+  const prevState = process.env.PORTLY_STATE_DIR;
 
   afterEach(() => {
-    if (prevState === undefined) delete process.env.PORTLESS_STATE_DIR;
-    else process.env.PORTLESS_STATE_DIR = prevState;
+    if (prevState === undefined) delete process.env.PORTLY_STATE_DIR;
+    else process.env.PORTLY_STATE_DIR = prevState;
   });
 
-  it("includes PORTLESS_STATE_DIR when the directory exists", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "portless-clean-collect-"));
-    process.env.PORTLESS_STATE_DIR = tmp;
+  it("includes PORTLY_STATE_DIR when the directory exists", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "portly-clean-collect-"));
+    process.env.PORTLY_STATE_DIR = tmp;
     const dirs = collectStateDirsForCleanup();
     expect(dirs).toContain(path.resolve(tmp));
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 });
 
-describe("removePortlessStateFiles", () => {
+describe("removePortlyStateFiles", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-clean-rm-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-clean-rm-"));
   });
 
   afterEach(() => {
@@ -41,7 +41,7 @@ describe("removePortlessStateFiles", () => {
 
     fs.writeFileSync(path.join(tmpDir, "user-notes.txt"), "keep me");
 
-    removePortlessStateFiles(tmpDir);
+    removePortlyStateFiles(tmpDir);
 
     expect(fs.existsSync(path.join(tmpDir, "routes.json"))).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, "ca.pem"))).toBe(false);
@@ -50,6 +50,6 @@ describe("removePortlessStateFiles", () => {
   });
 
   it("does not throw when paths are missing", () => {
-    expect(() => removePortlessStateFiles(tmpDir)).not.toThrow();
+    expect(() => removePortlyStateFiles(tmpDir)).not.toThrow();
   });
 });

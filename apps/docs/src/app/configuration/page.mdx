@@ -1,21 +1,21 @@
 # Configuration
 
-Bare `portless` works out of the box. It runs the `"dev"` script from `package.json` through the proxy, inferring the app name from the package name, git root, or directory:
+Bare `portly` works out of the box. It runs the `"dev"` script from `package.json` through the proxy, inferring the app name from the package name, git root, or directory:
 
 ```bash
-portless        # runs "dev" script, https://<project>.localhost
+portly        # runs "dev" script, https://<project>.localhost
 ```
 
-## portless.json
+## portly.json
 
-Use an optional `portless.json` to override defaults:
+Use an optional `portly.json` to override defaults:
 
 ```json
 { "name": "myapp" }
 ```
 
 ```bash
-portless        # runs "dev" script, https://myapp.localhost
+portly        # runs "dev" script, https://myapp.localhost
 ```
 
 The name is inferred from `package.json` if not set in config. The script defaults to `"dev"`.
@@ -76,14 +76,14 @@ The name is inferred from `package.json` if not set in config. The script defaul
 
 Each `apps` entry has the same shape (`name`, `script`, `appPort`, `proxy`). When `apps` is present, top-level fields apply only in single-app mode.
 
-### package.json "portless" key
+### package.json "portly" key
 
-Instead of a separate `portless.json`, you can add a `"portless"` key to your `package.json`. A string value is shorthand for setting the name:
+Instead of a separate `portly.json`, you can add a `"portly"` key to your `package.json`. A string value is shorthand for setting the name:
 
 ```json
 {
   "name": "@myorg/web",
-  "portless": "myapp"
+  "portly": "myapp"
 }
 ```
 
@@ -92,15 +92,15 @@ An object supports all per-app fields (`name`, `script`, `appPort`, `proxy`):
 ```json
 {
   "name": "@myorg/web",
-  "portless": { "name": "myapp", "script": "dev:app" }
+  "portly": { "name": "myapp", "script": "dev:app" }
 }
 ```
 
-The `package.json` `"portless"` key takes precedence over `portless.json` app entries but is overridden by CLI flags.
+The `package.json` `"portly"` key takes precedence over `portly.json` app entries but is overridden by CLI flags.
 
 ### Monorepo
 
-One `portless.json` at the repo root covers all workspace packages. Portless discovers packages from `pnpm-workspace.yaml`, or the `"workspaces"` field in `package.json` (npm, yarn, bun):
+One `portly.json` at the repo root covers all workspace packages. Portly discovers packages from `pnpm-workspace.yaml`, or the `"workspaces"` field in `package.json` (npm, yarn, bun):
 
 ```json
 {
@@ -112,9 +112,9 @@ One `portless.json` at the repo root covers all workspace packages. Portless dis
 ```
 
 ```bash
-portless                  # from repo root: start all packages with a "dev" script
-cd apps/web && portless   # start just one package
-portless --script start   # run "start" instead of "dev"
+portly                  # from repo root: start all packages with a "dev" script
+cd apps/web && portly   # start just one package
+portly --script start   # run "start" instead of "dev"
 ```
 
 The `apps` map is optional and only needed for overrides. Packages not listed still auto-discover with names inferred from their `package.json`.
@@ -123,31 +123,31 @@ Without an `apps` map, hostnames follow the `<package>.<project>.localhost` conv
 
 ### Turborepo
 
-For turborepo projects, use `portless` as the `dev` script and the real command in a separate script:
+For turborepo projects, use `portly` as the `dev` script and the real command in a separate script:
 
 ```json
 {
   "scripts": {
-    "dev": "portless",
+    "dev": "portly",
     "dev:app": "next dev"
   },
-  "portless": { "name": "myapp", "script": "dev:app" }
+  "portly": { "name": "myapp", "script": "dev:app" }
 }
 ```
 
-`pnpm dev` at the root runs turbo, which runs `portless` in each package. Portless detects the package manager and runs `pnpm run dev:app` through the proxy. No `turbo.json` changes are needed.
+`pnpm dev` at the root runs turbo, which runs `portly` in each package. Portly detects the package manager and runs `pnpm run dev:app` through the proxy. No `turbo.json` changes are needed.
 
-People without portless installed can run `pnpm run dev:app` directly.
+People without portly installed can run `pnpm run dev:app` directly.
 
 ### Precedence
 
 Closest config wins, like Prettier and ESLint:
 
-For `name`: CLI `--name` flag > `package.json` `"portless"` key > `portless.json` app entry > `package.json` inference.
+For `name`: CLI `--name` flag > `package.json` `"portly"` key > `portly.json` app entry > `package.json` inference.
 
-For `script`: CLI `--script` flag > `package.json` `"portless"` key > `portless.json` app entry > default `"dev"`.
+For `script`: CLI `--script` flag > `package.json` `"portly"` key > `portly.json` app entry > default `"dev"`.
 
-For `appPort`: CLI `--app-port` flag > `PORTLESS_APP_PORT` env var > `package.json` `"portless"` key > `portless.json` app entry > auto-assigned.
+For `appPort`: CLI `--app-port` flag > `PORTLY_APP_PORT` env var > `package.json` `"portly"` key > `portly.json` app entry > auto-assigned.
 
 ## Environment variables
 
@@ -161,57 +161,57 @@ For `appPort`: CLI `--app-port` flag > `PORTLESS_APP_PORT` env var > `package.js
   </thead>
   <tbody>
     <tr>
-      <td>`PORTLESS_PORT`</td>
+      <td>`PORTLY_PORT`</td>
       <td>Proxy port</td>
       <td>`443` (HTTPS) / `80` (HTTP)</td>
     </tr>
     <tr>
-      <td>`PORTLESS_HTTPS`</td>
+      <td>`PORTLY_HTTPS`</td>
       <td>HTTPS on by default; set to `0` to disable (same as `--no-tls`)</td>
       <td>on</td>
     </tr>
     <tr>
-      <td>`PORTLESS_LAN`</td>
+      <td>`PORTLY_LAN`</td>
       <td>Set to `1` to always enable LAN mode (mDNS `.local` domains)</td>
       <td>off</td>
     </tr>
     <tr>
-      <td>`PORTLESS_TLD`</td>
+      <td>`PORTLY_TLD`</td>
       <td>Use a custom TLD instead of `.localhost` (e.g. `test`)</td>
       <td>`localhost`</td>
     </tr>
     <tr>
-      <td>`PORTLESS_APP_PORT`</td>
+      <td>`PORTLY_APP_PORT`</td>
       <td>Use a fixed port for the app (skip auto-assignment)</td>
       <td>random 4000 to 4999</td>
     </tr>
     <tr>
-      <td>`PORTLESS_SYNC_HOSTS`</td>
+      <td>`PORTLY_SYNC_HOSTS`</td>
       <td>Set to `0` to disable auto-sync of `/etc/hosts`</td>
       <td>on</td>
     </tr>
     <tr>
-      <td>`PORTLESS_STATE_DIR`</td>
+      <td>`PORTLY_STATE_DIR`</td>
       <td>Override the state directory</td>
-      <td>`~/.portless`</td>
+      <td>`~/.portly`</td>
     </tr>
     <tr>
-      <td>`PORTLESS_TAILSCALE`</td>
+      <td>`PORTLY_TAILSCALE`</td>
       <td>Set to `1` to share apps on your Tailscale network</td>
       <td>off</td>
     </tr>
     <tr>
-      <td>`PORTLESS_FUNNEL`</td>
+      <td>`PORTLY_FUNNEL`</td>
       <td>Set to `1` to share apps publicly via Tailscale Funnel</td>
       <td>off</td>
     </tr>
     <tr>
-      <td>`PORTLESS_NGROK`</td>
+      <td>`PORTLY_NGROK`</td>
       <td>Set to `1` to share apps publicly via ngrok</td>
       <td>off</td>
     </tr>
     <tr>
-      <td>`PORTLESS`</td>
+      <td>`PORTLY`</td>
       <td>Set to `0` to bypass the proxy</td>
       <td>enabled</td>
     </tr>
@@ -220,7 +220,7 @@ For `appPort`: CLI `--app-port` flag > `PORTLESS_APP_PORT` env var > `package.js
 
 ## State directory
 
-Portless stores state (routes, PID file, port file, TLS marker) in `~/.portless` on all platforms. Override with `PORTLESS_STATE_DIR`.
+Portly stores state (routes, PID file, port file, TLS marker) in `~/.portly` on all platforms. Override with `PORTLY_STATE_DIR`.
 
 ## State files
 
@@ -261,4 +261,4 @@ Portless stores state (routes, PID file, port file, TLS marker) in `~/.portless`
 
 ## Port assignment
 
-Apps get a random port in the 4000--4999 range. Portless sets `PORT` and usually `HOST` before running your command. Most frameworks respect `PORT` automatically. For frameworks that ignore it (Vite, Astro, React Router, Angular, Expo, React Native), portless auto-injects the right `--port` flag and, when needed, a matching `--host` flag.
+Apps get a random port in the 4000--4999 range. Portly sets `PORT` and usually `HOST` before running your command. Most frameworks respect `PORT` automatically. For frameworks that ignore it (Vite, Astro, React Router, Angular, Expo, React Native), portly auto-injects the right `--port` flag and, when needed, a matching `--host` flag.

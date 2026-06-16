@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTANCE_FILE="$SCRIPT_DIR/.instance"
-NAME_PREFIX="portless-debug"
+NAME_PREFIX="portly-debug"
 INSTANCE_TYPE="${INSTANCE_TYPE:-t3.large}"
 
 if [[ -f "$INSTANCE_FILE" ]]; then
@@ -103,7 +103,7 @@ if [[ "$SG_ID" == "None" || -z "$SG_ID" ]]; then
   echo "Creating security group: $SG_NAME"
   SG_ID=$(aws ec2 create-security-group \
     --group-name "$SG_NAME" \
-    --description "portless Windows debug instance (SSM only, no inbound)" \
+    --description "portly Windows debug instance (SSM only, no inbound)" \
     --vpc-id "$VPC_ID" \
     --query "GroupId" --output text)
 else
@@ -167,9 +167,9 @@ $env:PATH = "C:\Program Files\OpenSSL-Win64\bin;$env:PATH"
 Log "OpenSSL installed: $(openssl version)"
 
 # Clone repo
-Log "Cloning portless..."
-git clone https://github.com/vercel-labs/portless.git C:\portless
-Set-Location C:\portless
+Log "Cloning portly..."
+git clone https://github.com/guthyerrz/portly.git C:\portly
+Set-Location C:\portly
 Log "Repo cloned."
 
 # Install dependencies and build
@@ -217,7 +217,7 @@ echo "  ./scripts/windows-debug/run.sh \"Get-Content C:\\bootstrap.log\""
 echo ""
 echo "Once ready, sync your branch and start debugging:"
 echo "  ./scripts/windows-debug/sync.sh"
-echo "  ./scripts/windows-debug/run.sh \"cd C:\\portless && pnpm test\""
+echo "  ./scripts/windows-debug/run.sh \"cd C:\\portly && pnpm test\""
 echo ""
 echo "Stop when done to save costs:"
 echo "  ./scripts/windows-debug/stop.sh"

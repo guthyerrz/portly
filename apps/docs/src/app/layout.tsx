@@ -12,24 +12,24 @@ import { getStarCount } from "@/lib/github";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://portless.sh"),
+  metadataBase: new URL("https://portly.sh"),
   title: {
-    default: "portless | Named .localhost URLs for Development",
-    template: "%s | portless",
+    default: "portly | Named .localhost URLs for Development",
+    template: "%s | portly",
   },
   description: "Replace port numbers with stable, named .localhost URLs. For humans and agents.",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://portless.sh",
-    siteName: "portless",
-    title: "portless | Named .localhost URLs for Development",
+    url: "https://portly.sh",
+    siteName: "portly",
+    title: "portly | Named .localhost URLs for Development",
     description: "Replace port numbers with stable, named .localhost URLs. For humans and agents.",
-    images: [{ url: "/og", width: 1200, height: 630, alt: "portless" }],
+    images: [{ url: "/og", width: 1200, height: 630, alt: "portly" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "portless | Named .localhost URLs for Development",
+    title: "portly | Named .localhost URLs for Development",
     description: "Replace port numbers with stable, named .localhost URLs. For humans and agents.",
     images: ["/og"],
   },
@@ -75,13 +75,13 @@ function Header({ stars }: { stars?: string }) {
             </svg>
           </span>
           <Link href="/">
-            <span className={`${GeistPixelSquare.className} text-lg`}>portless</span>
+            <span className={`${GeistPixelSquare.className} text-lg`}>portly</span>
           </Link>
         </div>
         <nav className="flex items-center gap-4">
           <Search />
           <a
-            href="https://github.com/vercel-labs/portless"
+            href="https://github.com/guthyerrz/portly"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -92,7 +92,7 @@ function Header({ stars }: { stars?: string }) {
             {stars && <span>{stars}</span>}
           </a>
           <a
-            href="https://www.npmjs.com/package/portless"
+            href="https://www.npmjs.com/package/portly"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"

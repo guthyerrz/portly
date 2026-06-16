@@ -1,5 +1,5 @@
 {
-  "name": "portless-e2e",
+  "name": "portly-e2e",
   "private": true,
   "type": "module",
   "scripts": {

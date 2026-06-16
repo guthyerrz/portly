@@ -173,14 +173,14 @@ function Content() {
     <div className="flex min-h-svh items-center justify-center px-6 py-16">
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Google OAuth + Portless</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Google OAuth + Portly</h1>
           <p className="text-base leading-relaxed text-muted-foreground">
             Google OAuth rejects{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
               .localhost
             </code>{" "}
-            subdomains. Portless fixes this by serving your app on any valid TLD. Use a domain you
-            own to keep traffic from reaching something you don&apos;t control.
+            subdomains. Portly fixes this by serving your app on any valid TLD. Use a domain you own
+            to keep traffic from reaching something you don&apos;t control.
           </p>
         </div>
 

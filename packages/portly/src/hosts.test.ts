@@ -18,27 +18,27 @@ describe("extractManagedBlock", () => {
   });
 
   it("returns empty array when only start marker exists", () => {
-    const content = "# portless-start\n127.0.0.1 myapp.localhost\n";
+    const content = "# portly-start\n127.0.0.1 myapp.localhost\n";
     expect(extractManagedBlock(content)).toEqual([]);
   });
 
   it("returns empty array when only end marker exists", () => {
-    const content = "127.0.0.1 myapp.localhost\n# portless-end\n";
+    const content = "127.0.0.1 myapp.localhost\n# portly-end\n";
     expect(extractManagedBlock(content)).toEqual([]);
   });
 
   it("returns empty array when end marker comes before start marker", () => {
-    const content = "# portless-end\n127.0.0.1 myapp.localhost\n# portless-start\n";
+    const content = "# portly-end\n127.0.0.1 myapp.localhost\n# portly-start\n";
     expect(extractManagedBlock(content)).toEqual([]);
   });
 
   it("extracts lines between markers", () => {
     const content = [
       "127.0.0.1 localhost",
-      "# portless-start",
+      "# portly-start",
       "127.0.0.1 myapp.localhost",
       "127.0.0.1 api.localhost",
-      "# portless-end",
+      "# portly-end",
       "",
     ].join("\n");
     expect(extractManagedBlock(content)).toEqual([
@@ -48,17 +48,17 @@ describe("extractManagedBlock", () => {
   });
 
   it("trims whitespace from extracted lines", () => {
-    const content = "# portless-start\n  127.0.0.1 myapp.localhost  \n# portless-end\n";
+    const content = "# portly-start\n  127.0.0.1 myapp.localhost  \n# portly-end\n";
     expect(extractManagedBlock(content)).toEqual(["127.0.0.1 myapp.localhost"]);
   });
 
   it("filters out empty lines", () => {
-    const content = "# portless-start\n\n127.0.0.1 myapp.localhost\n\n# portless-end\n";
+    const content = "# portly-start\n\n127.0.0.1 myapp.localhost\n\n# portly-end\n";
     expect(extractManagedBlock(content)).toEqual(["127.0.0.1 myapp.localhost"]);
   });
 
   it("returns empty array when block is empty", () => {
-    const content = "# portless-start\n# portless-end\n";
+    const content = "# portly-start\n# portly-end\n";
     expect(extractManagedBlock(content)).toEqual([]);
   });
 });
@@ -77,13 +77,13 @@ describe("removeBlock", () => {
     const content = [
       "127.0.0.1 localhost",
       "",
-      "# portless-start",
+      "# portly-start",
       "127.0.0.1 myapp.localhost",
-      "# portless-end",
+      "# portly-end",
       "",
     ].join("\n");
     const result = removeBlock(content);
-    expect(result).not.toContain("portless-start");
+    expect(result).not.toContain("portly-start");
     expect(result).not.toContain("myapp.localhost");
     expect(result).toContain("127.0.0.1 localhost");
     expect(result.endsWith("\n")).toBe(true);
@@ -91,13 +91,13 @@ describe("removeBlock", () => {
 
   it("does not leave more than 2 consecutive newlines", () => {
     const content =
-      "127.0.0.1 localhost\n\n\n# portless-start\n127.0.0.1 x.localhost\n# portless-end\n\n\nother\n";
+      "127.0.0.1 localhost\n\n\n# portly-start\n127.0.0.1 x.localhost\n# portly-end\n\n\nother\n";
     const result = removeBlock(content);
     expect(result).not.toMatch(/\n{3,}/);
   });
 
   it("preserves content before and after the block", () => {
-    const content = "before\n# portless-start\nentry\n# portless-end\nafter\n";
+    const content = "before\n# portly-start\nentry\n# portly-end\nafter\n";
     const result = removeBlock(content);
     expect(result).toContain("before");
     expect(result).toContain("after");
@@ -115,16 +115,16 @@ describe("buildBlock", () => {
 
   it("builds a single-entry block with markers", () => {
     const result = buildBlock(["myapp.localhost"]);
-    expect(result).toBe("# portless-start\n127.0.0.1 myapp.localhost\n# portless-end");
+    expect(result).toBe("# portly-start\n127.0.0.1 myapp.localhost\n# portly-end");
   });
 
   it("builds a multi-entry block", () => {
     const result = buildBlock(["myapp.localhost", "api.localhost"]);
     const lines = result.split("\n");
-    expect(lines[0]).toBe("# portless-start");
+    expect(lines[0]).toBe("# portly-start");
     expect(lines[1]).toBe("127.0.0.1 myapp.localhost");
     expect(lines[2]).toBe("127.0.0.1 api.localhost");
-    expect(lines[3]).toBe("# portless-end");
+    expect(lines[3]).toBe("# portly-end");
   });
 
   it("produces a block that extractManagedBlock can parse", () => {

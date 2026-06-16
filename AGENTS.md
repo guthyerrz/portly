@@ -20,15 +20,15 @@ Never use `--` as a dash in prose, comments, or user-facing output. Use an em da
 
 ## Boolean Environment Variables
 
-Document boolean env vars using only `0` and `1` in CLI help, SKILL.md, docs pages, and README. Code accepts `true`/`false` as well (and `skip` for `PORTLESS`), but these alternatives are not documented.
+Document boolean env vars using only `0` and `1` in CLI help, SKILL.md, docs pages, and README. Code accepts `true`/`false` as well (and `skip` for `PORTLY`), but these alternatives are not documented.
 
 ## Docs Updates
 
-When a change affects how humans or agents use portless (new/changed/removed commands, flags, behavior, or config), update all of these:
+When a change affects how humans or agents use portly (new/changed/removed commands, flags, behavior, or config), update all of these:
 
 1. `README.md` (user-facing documentation)
-2. `skills/portless/SKILL.md` (agent skill for using portless)
-3. `packages/portless/src/cli.ts` (`--help` output)
+2. `skills/portly/SKILL.md` (agent skill for using portly)
+3. `packages/portly/src/cli.ts` (`--help` output)
 
 ## Releasing
 
@@ -37,22 +37,22 @@ Releases are manual, single-PR affairs. The maintainer controls the changelog vo
 To prepare a release:
 
 1. Create a branch (e.g. `prepare-v1.2.0`)
-2. Bump the version in `packages/portless/package.json`
+2. Bump the version in `packages/portly/package.json`
 3. Write the changelog entry in `CHANGELOG.md`, wrapped in `<!-- release:start -->` and `<!-- release:end -->` markers
 4. Remove the `<!-- release:start -->` and `<!-- release:end -->` markers from the previous release entry (only the latest release should have markers)
 5. Add a matching entry to `apps/docs/src/app/changelog/page.mdx`
 6. Open a PR and merge to `main`
 
-CI compares the version in `packages/portless/package.json` to what's on npm. If it differs, it builds, publishes, and creates the GitHub release automatically. The release body is extracted from the content between the markers.
+CI compares the version in `packages/portly/package.json` to what's on npm. If it differs, it builds, publishes, and creates the GitHub release automatically. The release body is extracted from the content between the markers.
 
 ## Windows Debugging
 
 A remote Windows Server 2022 EC2 instance is available for debugging Windows-specific issues. It uses AWS Systems Manager (SSM) with no SSH or open ports. Commands run via `aws ssm send-command` and return stdout/stderr.
 
-All scripts require `AWS_PROFILE=portless-debug` (or the profile must be set as default). Prefix every command with it or export it for the session:
+All scripts require `AWS_PROFILE=portly-debug` (or the profile must be set as default). Prefix every command with it or export it for the session:
 
 ```bash
-export AWS_PROFILE=portless-debug
+export AWS_PROFILE=portly-debug
 ```
 
 ### Prerequisites
@@ -98,7 +98,7 @@ Stop the instance when done (avoids cost):
 **PowerShell uses `;` not `&&`.** The `run.sh` wrapper executes PowerShell, which does not support `&&` as a command separator. Use `;` instead:
 
 ```bash
-./scripts/windows-debug/run.sh "cd C:\portless; pnpm test"
+./scripts/windows-debug/run.sh "cd C:\portly; pnpm test"
 ```
 
 **OpenSSL may not be at the expected path.** The bootstrap installs OpenSSL to `C:\Program Files\OpenSSL-Win64\bin`, but this can fail silently. Git bundles its own OpenSSL at `C:\Program Files\Git\mingw64\bin`. If `openssl` is not found, add Git's path:
@@ -114,13 +114,13 @@ Stop the instance when done (avoids cost):
 Run unit tests on Windows:
 
 ```bash
-./scripts/windows-debug/run.sh "cd C:\portless; pnpm test"
+./scripts/windows-debug/run.sh "cd C:\portly; pnpm test"
 ```
 
 Run e2e tests on Windows:
 
 ```bash
-./scripts/windows-debug/run.sh "cd C:\portless; pnpm test:e2e"
+./scripts/windows-debug/run.sh "cd C:\portly; pnpm test:e2e"
 ```
 
 Check bootstrap progress (first boot only):
@@ -129,7 +129,7 @@ Check bootstrap progress (first boot only):
 ./scripts/windows-debug/run.sh "Get-Content C:\bootstrap.log"
 ```
 
-The repo lives at `C:\portless` on the instance. Node.js 24, pnpm 11, Git, and OpenSSL are pre-installed. The `run.sh` wrapper automatically adds these tools to PATH.
+The repo lives at `C:\portly` on the instance. Node.js 24, pnpm 11, Git, and OpenSSL are pre-installed. The `run.sh` wrapper automatically adds these tools to PATH.
 
 <!-- opensrc:start -->
 

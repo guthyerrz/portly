@@ -1,5 +1,5 @@
 {
-  "name": "portless-monorepo",
+  "name": "portly-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.1.3",

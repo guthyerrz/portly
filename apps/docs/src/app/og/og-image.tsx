@@ -58,7 +58,7 @@ export async function renderOgImage(title: string) {
             color: "white",
           }}
         >
-          portless
+          portly
         </span>
       </div>
 

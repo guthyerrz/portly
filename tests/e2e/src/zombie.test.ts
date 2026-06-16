@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CLI_PATH = path.resolve(__dirname, "../../../packages/portless/dist/cli.js");
+const CLI_PATH = path.resolve(__dirname, "../../../packages/portly/dist/cli.js");
 const FIXTURE_DIR = path.resolve(__dirname, "../fixtures/minimal-server");
 const PROXY_PORT = 19013;
 
@@ -119,8 +119,8 @@ async function cleanupTestState(state: TestState): Promise<void> {
     spawnSync(process.execPath, [CLI_PATH, "proxy", "stop"], {
       env: {
         ...process.env,
-        PORTLESS_PORT: PROXY_PORT.toString(),
-        PORTLESS_STATE_DIR: state.stateDir,
+        PORTLY_PORT: PROXY_PORT.toString(),
+        PORTLY_STATE_DIR: state.stateDir,
         NO_COLOR: "1",
       },
       timeout: 10_000,
@@ -143,13 +143,13 @@ async function startCliApp(
   state: TestState,
   script = "server.js"
 ): Promise<{ hostname: string; appPort: number }> {
-  state.stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-e2e-zombie-"));
+  state.stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-e2e-zombie-"));
 
   const baseEnv = {
     ...process.env,
-    PORTLESS_PORT: PROXY_PORT.toString(),
-    PORTLESS_HTTPS: "0",
-    PORTLESS_STATE_DIR: state.stateDir,
+    PORTLY_PORT: PROXY_PORT.toString(),
+    PORTLY_HTTPS: "0",
+    PORTLY_STATE_DIR: state.stateDir,
     NO_COLOR: "1",
   };
 
@@ -231,7 +231,7 @@ describe("zombie process prevention", () => {
     // Without wrapper.js, /bin/sh execs node directly and there's no grandchild to orphan.
     const { appPort } = await startCliApp("zombie-sigterm", state, "wrapper.js");
 
-    // SIGTERM the portless CLI. The fix (detached + killTree) should kill the
+    // SIGTERM the portly CLI. The fix (detached + killTree) should kill the
     // entire process group, including the grandchild dev server.
     state.cliChild!.kill("SIGTERM");
     await sleep(2000);
@@ -242,7 +242,7 @@ describe("zombie process prevention", () => {
     expect(survivors).toEqual([]);
   });
 
-  it("SIGKILL leaves orphan, portless prune cleans it up", async () => {
+  it("SIGKILL leaves orphan, portly prune cleans it up", async () => {
     if (isWindows) return;
 
     const { appPort } = await startCliApp("zombie-sigkill", state);
@@ -256,13 +256,13 @@ describe("zombie process prevention", () => {
     const survivors = findPidsOnPort(appPort);
     expect(survivors.length).toBeGreaterThan(0);
 
-    // portless prune is the safety net for this scenario
+    // portly prune is the safety net for this scenario
     const pruneResult = spawnSync(process.execPath, [CLI_PATH, "prune"], {
       env: {
         ...process.env,
-        PORTLESS_PORT: PROXY_PORT.toString(),
-        PORTLESS_HTTPS: "0",
-        PORTLESS_STATE_DIR: state.stateDir,
+        PORTLY_PORT: PROXY_PORT.toString(),
+        PORTLY_HTTPS: "0",
+        PORTLY_STATE_DIR: state.stateDir,
         NO_COLOR: "1",
       },
       encoding: "utf-8",
@@ -277,7 +277,7 @@ describe("zombie process prevention", () => {
   });
 });
 
-describe("portless prune", () => {
+describe("portly prune", () => {
   let stateDir: string | undefined;
   let orphanServer: ChildProcess | undefined;
   const ORPHAN_PORT = 17200;
@@ -301,7 +301,7 @@ describe("portless prune", () => {
   it("kills orphaned processes and removes stale routes", async () => {
     if (isWindows) return;
 
-    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-e2e-prune-"));
+    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-e2e-prune-"));
     fs.mkdirSync(stateDir, { recursive: true });
 
     orphanServer = spawn(
@@ -342,7 +342,7 @@ describe("portless prune", () => {
     const result = spawnSync(process.execPath, [CLI_PATH, "prune"], {
       env: {
         ...process.env,
-        PORTLESS_STATE_DIR: stateDir,
+        PORTLY_STATE_DIR: stateDir,
         NO_COLOR: "1",
       },
       encoding: "utf-8",
@@ -364,12 +364,12 @@ describe("portless prune", () => {
   it("reports nothing when no orphans exist", async () => {
     if (isWindows) return;
 
-    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-e2e-prune-clean-"));
+    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-e2e-prune-clean-"));
 
     const result = spawnSync(process.execPath, [CLI_PATH, "prune"], {
       env: {
         ...process.env,
-        PORTLESS_STATE_DIR: stateDir,
+        PORTLY_STATE_DIR: stateDir,
         NO_COLOR: "1",
       },
       encoding: "utf-8",

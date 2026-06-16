@@ -1,7 +1,7 @@
 {
-  "name": "@portless/docs",
+  "name": "@portly/docs",
   "version": "0.0.0",
-  "portless": "portless",
+  "portly": "portly",
   "private": true,
   "type": "module",
   "scripts": {

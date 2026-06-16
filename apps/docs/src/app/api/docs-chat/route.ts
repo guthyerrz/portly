@@ -12,13 +12,13 @@ export const maxDuration = 60;
 
 const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
 
-const SYSTEM_PROMPT = `You are a helpful documentation assistant for portless, a CLI tool that replaces port numbers with stable, named .localhost URLs.
+const SYSTEM_PROMPT = `You are a helpful documentation assistant for portly, a CLI tool that replaces port numbers with stable, named .localhost URLs.
 
-GitHub repository: https://github.com/vercel-labs/portless
-Documentation: https://portless.sh
-npm package: portless
+GitHub repository: https://github.com/guthyerrz/portly
+Documentation: https://portly.sh
+npm package: portly
 
-You have access to the full portless documentation via the bash and readFile tools. The docs are available as markdown files in the /workspace/ directory.
+You have access to the full portly documentation via the bash and readFile tools. The docs are available as markdown files in the /workspace/ directory.
 
 When answering questions:
 - Use the bash tool to list files (ls /workspace/) or search for content (grep -r "keyword" /workspace/)

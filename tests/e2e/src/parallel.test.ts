@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CLI_PATH = path.resolve(__dirname, "../../../packages/portless/dist/cli.js");
+const CLI_PATH = path.resolve(__dirname, "../../../packages/portly/dist/cli.js");
 const FIXTURE_DIR = path.resolve(__dirname, "../fixtures/minimal-server");
 const PROXY_PORT = 19012;
 
@@ -80,7 +80,7 @@ function makeRequest(url: string, host: string): Promise<{ status: number; body:
 }
 
 describe("parallel route registration", () => {
-  // Matches real-world monorepo scale (json-render has 19 parallel portless commands)
+  // Matches real-world monorepo scale (json-render has 19 parallel portly commands)
   const APP_COUNT = 20;
   const children: ChildProcess[] = [];
   let stateDir: string;
@@ -98,8 +98,8 @@ describe("parallel route registration", () => {
       spawnSync(process.execPath, [CLI_PATH, "proxy", "stop"], {
         env: {
           ...process.env,
-          PORTLESS_PORT: PROXY_PORT.toString(),
-          PORTLESS_STATE_DIR: stateDir,
+          PORTLY_PORT: PROXY_PORT.toString(),
+          PORTLY_STATE_DIR: stateDir,
           NO_COLOR: "1",
         },
         timeout: 10_000,
@@ -117,14 +117,14 @@ describe("parallel route registration", () => {
     }
   });
 
-  it("registers all routes when many portless run commands start in parallel", async () => {
-    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-e2e-parallel-"));
+  it("registers all routes when many portly run commands start in parallel", async () => {
+    stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-e2e-parallel-"));
 
     const baseEnv = {
       ...process.env,
-      PORTLESS_PORT: PROXY_PORT.toString(),
-      PORTLESS_HTTPS: "0",
-      PORTLESS_STATE_DIR: stateDir,
+      PORTLY_PORT: PROXY_PORT.toString(),
+      PORTLY_HTTPS: "0",
+      PORTLY_STATE_DIR: stateDir,
       NO_COLOR: "1",
     };
 

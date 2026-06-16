@@ -98,9 +98,9 @@ describe("isProxyRunning", () => {
     expect(result).toBe(false);
   });
 
-  it("returns true when a portless proxy is listening", async () => {
+  it("returns true when a portly proxy is listening", async () => {
     const server = http.createServer((_req, res) => {
-      res.setHeader("X-Portless", "1");
+      res.setHeader("X-Portly", "1");
       res.end("ok");
     });
     servers.push(server);
@@ -118,9 +118,9 @@ describe("isProxyRunning", () => {
     expect(result).toBe(true);
   });
 
-  it("returns false when a non-portless server is listening", async () => {
+  it("returns false when a non-portly server is listening", async () => {
     const server = http.createServer((_req, res) => {
-      res.end("not portless");
+      res.end("not portly");
     });
     servers.push(server);
 
@@ -158,16 +158,16 @@ describe("constants", () => {
     expect(PRIVILEGED_PORT_THRESHOLD).toBe(1024);
   });
 
-  it("LEGACY_SYSTEM_STATE_DIR is /tmp/portless on Unix, os.tmpdir() on Windows", () => {
+  it("LEGACY_SYSTEM_STATE_DIR is /tmp/portly on Unix, os.tmpdir() on Windows", () => {
     if (process.platform === "win32") {
-      expect(LEGACY_SYSTEM_STATE_DIR).toBe(path.join(os.tmpdir(), "portless"));
+      expect(LEGACY_SYSTEM_STATE_DIR).toBe(path.join(os.tmpdir(), "portly"));
     } else {
-      expect(LEGACY_SYSTEM_STATE_DIR).toBe("/tmp/portless");
+      expect(LEGACY_SYSTEM_STATE_DIR).toBe("/tmp/portly");
     }
   });
 
   it("USER_STATE_DIR is in home directory", () => {
-    expect(USER_STATE_DIR).toBe(path.join(os.homedir(), ".portless"));
+    expect(USER_STATE_DIR).toBe(path.join(os.homedir(), ".portly"));
   });
 });
 
@@ -242,56 +242,56 @@ describe("getDefaultPort", () => {
   let originalEnv: string | undefined;
 
   beforeEach(() => {
-    originalEnv = process.env.PORTLESS_PORT;
+    originalEnv = process.env.PORTLY_PORT;
   });
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      delete process.env.PORTLESS_PORT;
+      delete process.env.PORTLY_PORT;
     } else {
-      process.env.PORTLESS_PORT = originalEnv;
+      process.env.PORTLY_PORT = originalEnv;
     }
   });
 
   it("returns FALLBACK_PROXY_PORT when called without tls argument", () => {
-    delete process.env.PORTLESS_PORT;
+    delete process.env.PORTLY_PORT;
     expect(getDefaultPort()).toBe(FALLBACK_PROXY_PORT);
   });
 
   it("returns 443 when tls is true", () => {
-    delete process.env.PORTLESS_PORT;
+    delete process.env.PORTLY_PORT;
     expect(getDefaultPort(true)).toBe(443);
   });
 
   it("returns 80 when tls is false", () => {
-    delete process.env.PORTLESS_PORT;
+    delete process.env.PORTLY_PORT;
     expect(getDefaultPort(false)).toBe(80);
   });
 
-  it("returns PORTLESS_PORT when set, regardless of tls argument", () => {
-    process.env.PORTLESS_PORT = "8080";
+  it("returns PORTLY_PORT when set, regardless of tls argument", () => {
+    process.env.PORTLY_PORT = "8080";
     expect(getDefaultPort()).toBe(8080);
     expect(getDefaultPort(true)).toBe(8080);
     expect(getDefaultPort(false)).toBe(8080);
   });
 
-  it("returns protocol default when PORTLESS_PORT is invalid", () => {
-    process.env.PORTLESS_PORT = "not-a-number";
+  it("returns protocol default when PORTLY_PORT is invalid", () => {
+    process.env.PORTLY_PORT = "not-a-number";
     expect(getDefaultPort()).toBe(FALLBACK_PROXY_PORT);
     expect(getDefaultPort(true)).toBe(443);
     expect(getDefaultPort(false)).toBe(80);
   });
 
-  it("returns protocol default when PORTLESS_PORT is out of range", () => {
-    process.env.PORTLESS_PORT = "0";
+  it("returns protocol default when PORTLY_PORT is out of range", () => {
+    process.env.PORTLY_PORT = "0";
     expect(getDefaultPort(true)).toBe(443);
 
-    process.env.PORTLESS_PORT = "70000";
+    process.env.PORTLY_PORT = "70000";
     expect(getDefaultPort(false)).toBe(80);
   });
 
-  it("returns FALLBACK_PROXY_PORT when PORTLESS_PORT is empty and tls is undefined", () => {
-    process.env.PORTLESS_PORT = "";
+  it("returns FALLBACK_PROXY_PORT when PORTLY_PORT is empty and tls is undefined", () => {
+    process.env.PORTLY_PORT = "";
     expect(getDefaultPort()).toBe(FALLBACK_PROXY_PORT);
   });
 });
@@ -300,34 +300,34 @@ describe("isHttpsEnvDisabled", () => {
   let originalEnv: string | undefined;
 
   beforeEach(() => {
-    originalEnv = process.env.PORTLESS_HTTPS;
+    originalEnv = process.env.PORTLY_HTTPS;
   });
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      delete process.env.PORTLESS_HTTPS;
+      delete process.env.PORTLY_HTTPS;
     } else {
-      process.env.PORTLESS_HTTPS = originalEnv;
+      process.env.PORTLY_HTTPS = originalEnv;
     }
   });
 
-  it("returns true when PORTLESS_HTTPS is '0'", () => {
-    process.env.PORTLESS_HTTPS = "0";
+  it("returns true when PORTLY_HTTPS is '0'", () => {
+    process.env.PORTLY_HTTPS = "0";
     expect(isHttpsEnvDisabled()).toBe(true);
   });
 
-  it("returns true when PORTLESS_HTTPS is 'false'", () => {
-    process.env.PORTLESS_HTTPS = "false";
+  it("returns true when PORTLY_HTTPS is 'false'", () => {
+    process.env.PORTLY_HTTPS = "false";
     expect(isHttpsEnvDisabled()).toBe(true);
   });
 
-  it("returns false when PORTLESS_HTTPS is '1'", () => {
-    process.env.PORTLESS_HTTPS = "1";
+  it("returns false when PORTLY_HTTPS is '1'", () => {
+    process.env.PORTLY_HTTPS = "1";
     expect(isHttpsEnvDisabled()).toBe(false);
   });
 
-  it("returns false when PORTLESS_HTTPS is unset", () => {
-    delete process.env.PORTLESS_HTTPS;
+  it("returns false when PORTLY_HTTPS is unset", () => {
+    delete process.env.PORTLY_HTTPS;
     expect(isHttpsEnvDisabled()).toBe(false);
   });
 });
@@ -422,15 +422,15 @@ describe("injectFrameworkFlags", () => {
   });
 
   it("skips --host for expo in LAN mode (Metro defaults to LAN)", () => {
-    const prev = process.env.PORTLESS_LAN;
-    process.env.PORTLESS_LAN = "1";
+    const prev = process.env.PORTLY_LAN;
+    process.env.PORTLY_LAN = "1";
     try {
       const args = ["expo", "start"];
       injectFrameworkFlags(args, 4567);
       expect(args).toEqual(["expo", "start", "--port", "4567"]);
     } finally {
-      if (prev === undefined) delete process.env.PORTLESS_LAN;
-      else process.env.PORTLESS_LAN = prev;
+      if (prev === undefined) delete process.env.PORTLY_LAN;
+      else process.env.PORTLY_LAN = prev;
     }
   });
 
@@ -726,39 +726,39 @@ describe("getDefaultTld", () => {
   let originalEnv: string | undefined;
 
   beforeEach(() => {
-    originalEnv = process.env.PORTLESS_TLD;
+    originalEnv = process.env.PORTLY_TLD;
   });
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      delete process.env.PORTLESS_TLD;
+      delete process.env.PORTLY_TLD;
     } else {
-      process.env.PORTLESS_TLD = originalEnv;
+      process.env.PORTLY_TLD = originalEnv;
     }
   });
 
-  it("returns DEFAULT_TLD when PORTLESS_TLD is not set", () => {
-    delete process.env.PORTLESS_TLD;
+  it("returns DEFAULT_TLD when PORTLY_TLD is not set", () => {
+    delete process.env.PORTLY_TLD;
     expect(getDefaultTld()).toBe(DEFAULT_TLD);
   });
 
-  it("returns PORTLESS_TLD when set", () => {
-    process.env.PORTLESS_TLD = "test";
+  it("returns PORTLY_TLD when set", () => {
+    process.env.PORTLY_TLD = "test";
     expect(getDefaultTld()).toBe("test");
   });
 
   it("lowercases the value", () => {
-    process.env.PORTLESS_TLD = "TEST";
+    process.env.PORTLY_TLD = "TEST";
     expect(getDefaultTld()).toBe("test");
   });
 
   it("trims whitespace", () => {
-    process.env.PORTLESS_TLD = "  test  ";
+    process.env.PORTLY_TLD = "  test  ";
     expect(getDefaultTld()).toBe("test");
   });
 
-  it("returns DEFAULT_TLD when PORTLESS_TLD is empty", () => {
-    process.env.PORTLESS_TLD = "";
+  it("returns DEFAULT_TLD when PORTLY_TLD is empty", () => {
+    process.env.PORTLY_TLD = "";
     expect(getDefaultTld()).toBe(DEFAULT_TLD);
   });
 });
@@ -825,7 +825,7 @@ describe("readLanMarker / writeLanMarker", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-lan-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-lan-test-"));
   });
 
   afterEach(() => {
@@ -847,12 +847,12 @@ describe("readLanMarker / writeLanMarker", () => {
   });
 
   it("uses the LAN marker to remember LAN mode when the proxy is stopped", async () => {
-    const prevStateDir = process.env.PORTLESS_STATE_DIR;
+    const prevStateDir = process.env.PORTLY_STATE_DIR;
     try {
       fs.writeFileSync(path.join(tmpDir, "proxy.port"), "1355");
       writeTldFile(tmpDir, "local");
       writeLanMarker(tmpDir, "192.168.1.42");
-      process.env.PORTLESS_STATE_DIR = tmpDir;
+      process.env.PORTLY_STATE_DIR = tmpDir;
 
       await expect(discoverState()).resolves.toMatchObject({
         dir: tmpDir,
@@ -863,9 +863,9 @@ describe("readLanMarker / writeLanMarker", () => {
       });
     } finally {
       if (prevStateDir === undefined) {
-        delete process.env.PORTLESS_STATE_DIR;
+        delete process.env.PORTLY_STATE_DIR;
       } else {
-        process.env.PORTLESS_STATE_DIR = prevStateDir;
+        process.env.PORTLY_STATE_DIR = prevStateDir;
       }
     }
   });
@@ -875,7 +875,7 @@ describe("readTldFromDir / writeTldFile", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-tld-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-tld-test-"));
   });
 
   afterEach(() => {
@@ -944,17 +944,17 @@ describe("readPersistedProxyState", () => {
   let prevStateDir: string | undefined;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-persist-test-"));
-    prevStateDir = process.env.PORTLESS_STATE_DIR;
-    process.env.PORTLESS_STATE_DIR = tmpDir;
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-persist-test-"));
+    prevStateDir = process.env.PORTLY_STATE_DIR;
+    process.env.PORTLY_STATE_DIR = tmpDir;
   });
 
   afterEach(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     if (prevStateDir === undefined) {
-      delete process.env.PORTLESS_STATE_DIR;
+      delete process.env.PORTLY_STATE_DIR;
     } else {
-      process.env.PORTLESS_STATE_DIR = prevStateDir;
+      process.env.PORTLY_STATE_DIR = prevStateDir;
     }
   });
 

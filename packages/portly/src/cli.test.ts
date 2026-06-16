@@ -60,14 +60,14 @@ function writeExpoShim(dir: string): void {
     captureScriptPath,
     [
       'const fs = require("node:fs");',
-      "const capturePath = process.env.PORTLESS_TEST_CAPTURE_FILE;",
+      "const capturePath = process.env.PORTLY_TEST_CAPTURE_FILE;",
       "const payload = {",
       "  args: process.argv.slice(2),",
       "  env: {",
       "    PORT: process.env.PORT,",
       "    HOST: process.env.HOST,",
-      "    PORTLESS_LAN: process.env.PORTLESS_LAN,",
-      "    PORTLESS_URL: process.env.PORTLESS_URL,",
+      "    PORTLY_LAN: process.env.PORTLY_LAN,",
+      "    PORTLY_URL: process.env.PORTLY_URL,",
       "  },",
       "};",
       "fs.writeFileSync(capturePath, JSON.stringify(payload));",
@@ -115,23 +115,23 @@ describe("CLI", () => {
     it("prints help and exits 0 with --help", () => {
       const { status, stdout } = run(["--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless");
+      expect(stdout).toContain("portly");
       expect(stdout).toContain("Usage:");
       expect(stdout).toContain("Examples:");
       expect(stdout).toContain("proxy start");
       expect(stdout).toContain("service install");
-      expect(stdout).toContain("portless run");
-      expect(stdout).toContain("portless get");
+      expect(stdout).toContain("portly run");
+      expect(stdout).toContain("portly get");
       expect(stdout).toContain("run [--name <name>]");
       expect(stdout).toContain("--port");
       expect(stdout).toContain("-p");
       expect(stdout).toContain("--foreground");
-      expect(stdout).toContain("PORTLESS_STATE_DIR");
-      expect(stdout).toContain("PORTLESS_URL");
+      expect(stdout).toContain("PORTLY_STATE_DIR");
+      expect(stdout).toContain("PORTLY_URL");
       expect(stdout).toContain("--ngrok");
-      expect(stdout).toContain("PORTLESS_NGROK");
-      expect(stdout).toContain("PORTLESS_NGROK_URL");
-      expect(stdout).toContain("portless clean");
+      expect(stdout).toContain("PORTLY_NGROK");
+      expect(stdout).toContain("PORTLY_NGROK_URL");
+      expect(stdout).toContain("portly clean");
     });
 
     it("prints help and exits 0 with -h", () => {
@@ -141,7 +141,7 @@ describe("CLI", () => {
     });
 
     it("prints help and exits 0 with no args when no dev script exists", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-help-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-help-"));
       try {
         fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ name: "test-app" }));
         const { status, stdout } = run([], { cwd: tmpDir });
@@ -197,18 +197,18 @@ describe("CLI", () => {
     it("prints service help", () => {
       const { status, stdout } = run(["service", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless service");
+      expect(stdout).toContain("portly service");
       expect(stdout).toContain("service install");
       expect(stdout).toContain("service uninstall");
       expect(stdout).toContain("service status");
     });
 
-    it("still dispatches service help when PORTLESS=0", () => {
+    it("still dispatches service help when PORTLY=0", () => {
       const { status, stdout } = run(["service", "--help"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
-      expect(stdout).toContain("portless service");
+      expect(stdout).toContain("portly service");
       expect(stdout).toContain("service install");
     });
   });
@@ -221,32 +221,32 @@ describe("CLI", () => {
     });
   });
 
-  describe("PORTLESS=0 bypass", () => {
-    it("runs command directly when PORTLESS=0 is set", () => {
+  describe("PORTLY=0 bypass", () => {
+    it("runs command directly when PORTLY=0 is set", () => {
       const { status, stdout } = run(["myapp", "echo", "hello"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("hello");
     });
 
-    it("runs command directly when PORTLESS=skip is set", () => {
+    it("runs command directly when PORTLY=skip is set", () => {
       const { status, stdout } = run(["myapp", "echo", "bypassed"], {
-        env: { PORTLESS: "skip" },
+        env: { PORTLY: "skip" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("bypassed");
     });
 
-    it("does not bypass proxy commands when PORTLESS=0 is set", async () => {
+    it("does not bypass proxy commands when PORTLY=0 is set", async () => {
       // 'proxy stop' should still be handled as a proxy command, not bypassed
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-bypass-proxy-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-bypass-proxy-"));
       const proxyPort = await getFreePort();
       const { stderr } = run(["proxy", "stop"], {
         env: {
-          PORTLESS: "0",
-          PORTLESS_PORT: proxyPort.toString(),
-          PORTLESS_STATE_DIR: tmpDir,
+          PORTLY: "0",
+          PORTLY_PORT: proxyPort.toString(),
+          PORTLY_STATE_DIR: tmpDir,
         },
       });
       fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -256,16 +256,16 @@ describe("CLI", () => {
 
     it("passes through exit code from bypassed command", () => {
       const { status } = run(["myapp", "node", "-e", "process.exit(42)"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(42);
     });
   });
 
-  describe("PORTLESS=0 bypass with run subcommand", () => {
+  describe("PORTLY=0 bypass with run subcommand", () => {
     it("runs command directly in run mode", () => {
       const { status, stdout } = run(["run", "echo", "hello"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("hello");
@@ -273,7 +273,7 @@ describe("CLI", () => {
 
     it("strips --force but passes child --force through", () => {
       const { status, stdout } = run(["run", "--force", "echo", "--force", "kept"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("--force kept");
@@ -281,7 +281,7 @@ describe("CLI", () => {
 
     it("passes -- separator through to child command", () => {
       const { status, stdout } = run(["run", "--", "echo", "hello"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("hello");
@@ -289,25 +289,25 @@ describe("CLI", () => {
   });
 
   describe("--force positioning", () => {
-    it("accepts --force before name (PORTLESS=0)", () => {
+    it("accepts --force before name (PORTLY=0)", () => {
       const { status, stdout } = run(["--force", "myapp", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
     });
 
-    it("accepts --force after name (PORTLESS=0)", () => {
+    it("accepts --force after name (PORTLY=0)", () => {
       const { status, stdout } = run(["myapp", "--force", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
     });
 
-    it("does not strip child command --force (PORTLESS=0)", () => {
+    it("does not strip child command --force (PORTLY=0)", () => {
       const { status, stdout } = run(["myapp", "echo", "--force", "kept"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("--force kept");
@@ -334,7 +334,7 @@ describe("CLI", () => {
 
   describe("run subcommand dispatch", () => {
     it("exits 1 with 'No command provided' when no args follow run and no dev script", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-run-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-run-"));
       try {
         fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ name: "test-app" }));
         const { status, stderr } = run(["run"], { cwd: tmpDir });
@@ -346,10 +346,10 @@ describe("CLI", () => {
     });
 
     it("does not dispatch 'list' as the global list command", () => {
-      // With PORTLESS=0, "run list" should try to exec "list" as a child
+      // With PORTLY=0, "run list" should try to exec "list" as a child
       // process (which will ENOENT), not show routes.
       const { stdout } = run(["run", "list"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       // If it mistakenly ran the global "list" handler, status would be 0
       // and stdout would contain route output. Instead it should try to
@@ -368,7 +368,7 @@ describe("CLI", () => {
     it("prints run-specific help for run --help", () => {
       const { status, stdout } = run(["run", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless run");
+      expect(stdout).toContain("portly run");
       expect(stdout).toContain("--force");
       expect(stdout).toContain("--app-port");
     });
@@ -376,14 +376,14 @@ describe("CLI", () => {
     it("prints run-specific help for run -h", () => {
       const { status, stdout } = run(["run", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless run");
+      expect(stdout).toContain("portly run");
     });
   });
 
   describe("--app-port flag", () => {
-    it("passes --app-port through in bypass mode (PORTLESS=0)", () => {
+    it("passes --app-port through in bypass mode (PORTLY=0)", () => {
       const { status, stdout } = run(["run", "--app-port", "4567", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
@@ -391,7 +391,7 @@ describe("CLI", () => {
 
     it("rejects invalid --app-port value", () => {
       const { status, stderr } = run(["run", "--app-port", "abc", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("Invalid app port");
@@ -399,15 +399,15 @@ describe("CLI", () => {
 
     it("rejects --app-port without a value", () => {
       const { status, stderr } = run(["run", "--app-port"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("--app-port requires");
     });
 
-    it("accepts --app-port in named mode (PORTLESS=0)", () => {
+    it("accepts --app-port in named mode (PORTLY=0)", () => {
       const { status, stdout } = run(["myapp", "--app-port", "3000", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
@@ -418,14 +418,14 @@ describe("CLI", () => {
     it("prints help with --help", () => {
       const { status, stdout } = run(["alias", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless alias");
+      expect(stdout).toContain("portly alias");
       expect(stdout).toContain("--remove");
     });
 
     it("prints help with -h", () => {
       const { status, stdout } = run(["alias", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless alias");
+      expect(stdout).toContain("portly alias");
     });
 
     it("exits 1 with usage when no args given", () => {
@@ -457,7 +457,7 @@ describe("CLI", () => {
     it("prints help with --help", () => {
       const { status, stdout } = run(["hosts", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless hosts");
+      expect(stdout).toContain("portly hosts");
       expect(stdout).toContain("sync");
       expect(stdout).toContain("clean");
     });
@@ -465,7 +465,7 @@ describe("CLI", () => {
     it("prints help with -h", () => {
       const { status, stdout } = run(["hosts", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless hosts");
+      expect(stdout).toContain("portly hosts");
     });
 
     it("shows usage for bare 'hosts' without subcommand", () => {
@@ -486,14 +486,14 @@ describe("CLI", () => {
     it("prints help with --help", () => {
       const { status, stdout } = run(["clean", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless clean");
+      expect(stdout).toContain("portly clean");
       expect(stdout).toContain("trust store");
     });
 
     it("prints help with -h", () => {
       const { status, stdout } = run(["clean", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless clean");
+      expect(stdout).toContain("portly clean");
     });
 
     it("rejects unknown arguments", () => {
@@ -502,20 +502,20 @@ describe("CLI", () => {
       expect(stderr).toContain("Unknown argument");
     });
 
-    it("does not bypass when PORTLESS=0 is set", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-bypass-clean-"));
+    it("does not bypass when PORTLY=0 is set", () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-bypass-clean-"));
       const { stderr } = run(["clean"], {
         env: {
-          PORTLESS: "0",
-          PORTLESS_STATE_DIR: tmpDir,
+          PORTLY: "0",
+          PORTLY_STATE_DIR: tmpDir,
         },
       });
       fs.rmSync(tmpDir, { recursive: true, force: true });
       expect(stderr).not.toContain("ENOENT");
     });
 
-    it("does not bypass clean with extra args when PORTLESS=0", () => {
-      const { status, stderr } = run(["clean", "typo"], { env: { PORTLESS: "0" } });
+    it("does not bypass clean with extra args when PORTLY=0", () => {
+      const { status, stderr } = run(["clean", "typo"], { env: { PORTLY: "0" } });
       expect(status).toBe(1);
       expect(stderr).toContain("Unknown argument");
     });
@@ -525,7 +525,7 @@ describe("CLI", () => {
     it("prints help with --help", () => {
       const { status, stdout } = run(["proxy", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless proxy");
+      expect(stdout).toContain("portly proxy");
       expect(stdout).toContain("start");
       expect(stdout).toContain("stop");
     });
@@ -533,7 +533,7 @@ describe("CLI", () => {
     it("prints help with -h", () => {
       const { status, stdout } = run(["proxy", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless proxy");
+      expect(stdout).toContain("portly proxy");
     });
 
     it("shows usage for bare 'proxy' without subcommand", () => {
@@ -549,9 +549,9 @@ describe("CLI", () => {
     });
 
     it("warns when a running proxy uses a different explicit config", async () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-running-proxy-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-running-proxy-"));
       const server = http.createServer((_req, res) => {
-        res.setHeader("X-Portless", "1");
+        res.setHeader("X-Portly", "1");
         res.end("ok");
       });
 
@@ -568,13 +568,13 @@ describe("CLI", () => {
         fs.writeFileSync(path.join(tmpDir, "proxy.port"), proxyPort.toString());
 
         const { status, stderr } = run(["proxy", "start", "--lan"], {
-          env: { PORTLESS_STATE_DIR: tmpDir },
+          env: { PORTLY_STATE_DIR: tmpDir },
         });
 
         expect(status).toBe(1);
         expect(stderr).toContain("Proxy is already running on port");
         expect(stderr).toContain("requested LAN mode");
-        expect(stderr).toContain("portless proxy stop");
+        expect(stderr).toContain("portly proxy stop");
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -586,7 +586,7 @@ describe("CLI", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-lan-marker-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-lan-marker-"));
     });
 
     afterEach(() => {
@@ -597,7 +597,7 @@ describe("CLI", () => {
       "reuses persisted LAN mode when starting the proxy again",
       async () => {
         const proxyPort = await getFreePort();
-        const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portless-empty-path-"));
+        const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portly-empty-path-"));
 
         fs.writeFileSync(path.join(tmpDir, "proxy.lan"), "192.168.1.42");
 
@@ -605,8 +605,8 @@ describe("CLI", () => {
           const { status, stderr } = run(["proxy", "start"], {
             env: {
               PATH: emptyPath,
-              PORTLESS_STATE_DIR: tmpDir,
-              PORTLESS_PORT: proxyPort.toString(),
+              PORTLY_STATE_DIR: tmpDir,
+              PORTLY_PORT: proxyPort.toString(),
             },
           });
 
@@ -618,13 +618,13 @@ describe("CLI", () => {
       }
     );
 
-    it("PORTLESS_LAN=0 overrides the LAN marker on a fresh start", async () => {
+    it("PORTLY_LAN=0 overrides the LAN marker on a fresh start", async () => {
       const proxyPort = await getFreePort();
       const env = {
-        PORTLESS_STATE_DIR: tmpDir,
-        PORTLESS_PORT: proxyPort.toString(),
-        PORTLESS_LAN: "0",
-        PORTLESS_HTTPS: "0",
+        PORTLY_STATE_DIR: tmpDir,
+        PORTLY_PORT: proxyPort.toString(),
+        PORTLY_LAN: "0",
+        PORTLY_HTTPS: "0",
       };
 
       fs.writeFileSync(path.join(tmpDir, "proxy.lan"), "192.168.1.42");
@@ -644,7 +644,7 @@ describe("CLI", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-lan-test-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-lan-test-"));
     });
 
     afterEach(() => {
@@ -655,15 +655,15 @@ describe("CLI", () => {
       // Use an empty PATH so the mDNS check fails early, causing the
       // process to exit without needing a running proxy server (spawnSync
       // blocks the parent event loop, preventing a fake server from responding).
-      const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portless-empty-path-"));
+      const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portly-empty-path-"));
       try {
         const { status, stderr } = run(
           ["proxy", "start", "--lan", "--tld", "test", "--ip", "192.168.1.42"],
           {
             env: {
               PATH: emptyPath,
-              PORTLESS_STATE_DIR: tmpDir,
-              PORTLESS_PORT: "19876",
+              PORTLY_STATE_DIR: tmpDir,
+              PORTLY_PORT: "19876",
             },
           }
         );
@@ -678,15 +678,15 @@ describe("CLI", () => {
     it.skipIf(process.platform === "win32")(
       "fails early when the mDNS publisher binary is missing",
       () => {
-        const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portless-empty-path-"));
+        const emptyPath = fs.mkdtempSync(path.join(os.tmpdir(), "portly-empty-path-"));
         try {
           const { status, stderr, stdout } = run(
             ["proxy", "start", "--foreground", "--lan", "--ip", "192.168.1.42"],
             {
               env: {
                 PATH: emptyPath,
-                PORTLESS_PORT: "19876",
-                PORTLESS_STATE_DIR: tmpDir,
+                PORTLY_PORT: "19876",
+                PORTLY_STATE_DIR: tmpDir,
               },
             }
           );
@@ -705,10 +705,10 @@ describe("CLI", () => {
 
     it("propagates the LAN marker into expo child commands", async () => {
       const server = http.createServer((_req, res) => {
-        res.setHeader("X-Portless", "1");
+        res.setHeader("X-Portly", "1");
         res.end("ok");
       });
-      const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-expo-shim-"));
+      const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-expo-shim-"));
       const capturePath = path.join(shimDir, "capture.json");
 
       try {
@@ -729,9 +729,9 @@ describe("CLI", () => {
         const { status } = run(["run", "--name", "mobile", "--app-port", "4567", "expo", "start"], {
           env: {
             PATH: `${shimDir}${path.delimiter}${process.env.PATH ?? ""}`,
-            PORTLESS_STATE_DIR: tmpDir,
-            PORTLESS_TEST_CAPTURE_FILE: capturePath,
-            PORTLESS_HTTPS: "0",
+            PORTLY_STATE_DIR: tmpDir,
+            PORTLY_TEST_CAPTURE_FILE: capturePath,
+            PORTLY_HTTPS: "0",
           },
         });
 
@@ -747,8 +747,8 @@ describe("CLI", () => {
         expect(capture.args).toEqual(["start", "--port", "4567"]);
         expect(capture.env).toMatchObject({
           PORT: "4567",
-          PORTLESS_LAN: "1",
-          PORTLESS_URL: `http://mobile.local:${proxyPort}`,
+          PORTLY_LAN: "1",
+          PORTLY_URL: `http://mobile.local:${proxyPort}`,
         });
         expect(capture.env.HOST).toBeUndefined();
       } finally {
@@ -762,7 +762,7 @@ describe("CLI", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-rsbuild-test-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-rsbuild-test-"));
     });
 
     afterEach(() => {
@@ -775,13 +775,13 @@ describe("CLI", () => {
         captureScriptPath,
         [
           'const fs = require("node:fs");',
-          "const capturePath = process.env.PORTLESS_TEST_CAPTURE_FILE;",
+          "const capturePath = process.env.PORTLY_TEST_CAPTURE_FILE;",
           "const payload = {",
           "  args: process.argv.slice(2),",
           "  env: {",
           "    PORT: process.env.PORT,",
           "    HOST: process.env.HOST,",
-          "    PORTLESS_URL: process.env.PORTLESS_URL,",
+          "    PORTLY_URL: process.env.PORTLY_URL,",
           "  },",
           "};",
           "fs.writeFileSync(capturePath, JSON.stringify(payload));",
@@ -803,10 +803,10 @@ describe("CLI", () => {
 
     it("injects --port and --host into rsbuild child commands", async () => {
       const server = http.createServer((_req, res) => {
-        res.setHeader("X-Portless", "1");
+        res.setHeader("X-Portly", "1");
         res.end("ok");
       });
-      const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-rsbuild-shim-"));
+      const shimDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-rsbuild-shim-"));
       const capturePath = path.join(shimDir, "capture.json");
 
       try {
@@ -826,9 +826,9 @@ describe("CLI", () => {
         const { status } = run(["run", "--name", "myapp", "--app-port", "4567", "rsbuild", "dev"], {
           env: {
             PATH: `${shimDir}${path.delimiter}${process.env.PATH ?? ""}`,
-            PORTLESS_STATE_DIR: tmpDir,
-            PORTLESS_TEST_CAPTURE_FILE: capturePath,
-            PORTLESS_HTTPS: "0",
+            PORTLY_STATE_DIR: tmpDir,
+            PORTLY_TEST_CAPTURE_FILE: capturePath,
+            PORTLY_HTTPS: "0",
           },
         });
 
@@ -843,7 +843,7 @@ describe("CLI", () => {
         expect(capture.env).toMatchObject({
           PORT: "4567",
           HOST: "127.0.0.1",
-          PORTLESS_URL: `http://myapp.localhost:${proxyPort}`,
+          PORTLY_URL: `http://myapp.localhost:${proxyPort}`,
         });
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -856,7 +856,7 @@ describe("CLI", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-ca-test-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-ca-test-"));
     });
 
     afterEach(() => {
@@ -869,7 +869,7 @@ describe("CLI", () => {
       env?: Record<string, string | undefined>;
     }): Promise<{ status: number | null; capture: Record<string, unknown> }> {
       const server = http.createServer((_req, res) => {
-        res.setHeader("X-Portless", "1");
+        res.setHeader("X-Portly", "1");
         res.end("ok");
       });
 
@@ -904,7 +904,7 @@ describe("CLI", () => {
         );
 
         const { status } = run(["run", "--name", "testapp", "node", scriptPath], {
-          env: { PORTLESS_STATE_DIR: tmpDir, ...opts.env },
+          env: { PORTLY_STATE_DIR: tmpDir, ...opts.env },
         });
 
         const capture = fs.existsSync(capturePath)
@@ -927,7 +927,7 @@ describe("CLI", () => {
     it("does not set NODE_EXTRA_CA_CERTS when TLS is disabled", async () => {
       const { status, capture } = await runWithMockProxy({
         tls: false,
-        env: { PORTLESS_HTTPS: "0", NODE_EXTRA_CA_CERTS: undefined },
+        env: { PORTLY_HTTPS: "0", NODE_EXTRA_CA_CERTS: undefined },
       });
       expect(status).toBe(0);
       expect(capture.NODE_EXTRA_CA_CERTS).toBeUndefined();
@@ -956,26 +956,26 @@ describe("CLI", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-get-test-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-get-test-"));
     });
 
     afterEach(() => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    const getEnv = () => ({ PORTLESS_STATE_DIR: tmpDir });
+    const getEnv = () => ({ PORTLY_STATE_DIR: tmpDir });
 
     it("prints help with --help", () => {
       const { status, stdout } = run(["get", "--help"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless get");
+      expect(stdout).toContain("portly get");
       expect(stdout).toContain("--no-worktree");
     });
 
     it("prints help with -h", () => {
       const { status, stdout } = run(["get", "-h"]);
       expect(status).toBe(0);
-      expect(stdout).toContain("portless get");
+      expect(stdout).toContain("portly get");
     });
 
     it("exits 1 with usage when no name given", () => {
@@ -1016,17 +1016,17 @@ describe("CLI", () => {
   });
 
   describe("--name flag", () => {
-    it("treats reserved word as app name with PORTLESS=0", () => {
+    it("treats reserved word as app name with PORTLY=0", () => {
       const { status, stdout } = run(["--name", "run", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
     });
 
-    it("passes --force through with --name (PORTLESS=0)", () => {
+    it("passes --force through with --name (PORTLY=0)", () => {
       const { status, stdout } = run(["--name", "alias", "--force", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
@@ -1052,9 +1052,9 @@ describe("CLI", () => {
       expect(stdout).toContain("--name");
     });
 
-    it("strips --name and passes command through (PORTLESS=0)", () => {
+    it("strips --name and passes command through (PORTLY=0)", () => {
       const { status, stdout } = run(["run", "--name", "custom", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
@@ -1072,17 +1072,17 @@ describe("CLI", () => {
       expect(stderr).toContain("--name requires");
     });
 
-    it("combines --name with --force (PORTLESS=0)", () => {
+    it("combines --name with --force (PORTLY=0)", () => {
       const { status, stdout } = run(["run", "--name", "foo", "--force", "echo", "ok"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("ok");
     });
 
-    it("does not consume --name after -- separator (PORTLESS=0)", () => {
+    it("does not consume --name after -- separator (PORTLY=0)", () => {
       const { status, stdout } = run(["run", "--", "echo", "--name", "foo"], {
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout.trim()).toBe("--name foo");
@@ -1094,13 +1094,13 @@ describe("CLI", () => {
     let testPort: number;
 
     const proxyEnv = () => ({
-      PORTLESS_PORT: String(testPort),
-      PORTLESS_HTTPS: "0",
-      PORTLESS_STATE_DIR: tmpDir,
+      PORTLY_PORT: String(testPort),
+      PORTLY_HTTPS: "0",
+      PORTLY_STATE_DIR: tmpDir,
     });
 
     beforeEach(async () => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-lifecycle-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-lifecycle-"));
       testPort = await getFreePort();
     });
 
@@ -1143,9 +1143,9 @@ describe("CLI", () => {
       const start = run(["proxy", "start"], { env: proxyEnv() });
       expect(start.status).toBe(0);
 
-      // Stop without PORTLESS_PORT, using -p instead
+      // Stop without PORTLY_PORT, using -p instead
       const stop = run(["proxy", "stop", "-p", String(testPort)], {
-        env: { PORTLESS_HTTPS: "0", PORTLESS_STATE_DIR: tmpDir },
+        env: { PORTLY_HTTPS: "0", PORTLY_STATE_DIR: tmpDir },
       });
       expect(stop.status).toBe(0);
       expect(stop.stdout).toContain("Proxy stopped");
@@ -1158,14 +1158,14 @@ describe("CLI", () => {
     let testPort: number;
 
     beforeEach(async () => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-trust-timeout-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-trust-timeout-"));
       testPort = await getFreePort();
 
       // Create a fake `security` binary that always fails, simulating the
       // macOS Keychain Services daemon being unresponsive. The real issue
       // (#228) is a slow/hanging securityd, but an instant failure exercises
       // the same error-handling code path without making the test wait minutes.
-      fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-fake-bin-"));
+      fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-fake-bin-"));
       const fakeSecurityPath = path.join(fakeBinDir, "security");
       fs.writeFileSync(fakeSecurityPath, "#!/bin/sh\nexit 1\n");
       fs.chmodSync(fakeSecurityPath, 0o755);
@@ -1173,7 +1173,7 @@ describe("CLI", () => {
 
     afterEach(() => {
       run(["proxy", "stop", "-p", String(testPort)], {
-        env: { PORTLESS_STATE_DIR: tmpDir },
+        env: { PORTLY_STATE_DIR: tmpDir },
       });
       fs.rmSync(tmpDir, { recursive: true, force: true });
       fs.rmSync(fakeBinDir, { recursive: true, force: true });
@@ -1183,13 +1183,13 @@ describe("CLI", () => {
       "starts HTTPS proxy when security commands fail",
       () => {
         const env = {
-          PORTLESS_PORT: String(testPort),
-          PORTLESS_STATE_DIR: tmpDir,
+          PORTLY_PORT: String(testPort),
+          PORTLY_STATE_DIR: tmpDir,
           // Put fake security first in PATH; real openssl is still reachable
           PATH: `${fakeBinDir}:${process.env.PATH}`,
         };
 
-        // HTTPS is on by default (no PORTLESS_HTTPS=0), so this exercises
+        // HTTPS is on by default (no PORTLY_HTTPS=0), so this exercises
         // cert generation, the failing trust check, and daemon startup.
         const start = spawnSync(process.execPath, [CLI_PATH, "proxy", "start"], {
           encoding: "utf-8",
@@ -1219,73 +1219,73 @@ describe("CLI", () => {
     );
   });
 
-  describe("portless.json config", () => {
+  describe("portly.json config", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-config-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-config-"));
     });
 
     afterEach(() => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it("portless (no args) runs dev script without portless.json", () => {
+    it("portly (no args) runs dev script without portly.json", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo hello" } })
       );
       const { status, stdout } = run([], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(status).toBe(0);
       expect(stdout).toContain("hello");
     });
 
-    it("portless run (no command) with portless.json resolves dev script", () => {
+    it("portly run (no command) with portly.json resolves dev script", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo config-dev" } })
       );
-      fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "myapp" }));
+      fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "myapp" }));
       const { stdout } = run(["run"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("config-dev");
     });
 
-    it("portless run (no command) without portless.json resolves dev script", () => {
+    it("portly run (no command) without portly.json resolves dev script", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo hello" } })
       );
       const { stdout } = run(["run"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("hello");
     });
 
-    it("portless run with explicit command ignores config script", () => {
+    it("portly run with explicit command ignores config script", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo from-config" } })
       );
       fs.writeFileSync(
-        path.join(tmpDir, "portless.json"),
+        path.join(tmpDir, "portly.json"),
         JSON.stringify({ name: "myapp", script: "dev" })
       );
       const { stdout } = run(["run", "echo", "from-cli"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("from-cli");
       expect(stdout).not.toContain("from-config");
     });
 
-    it("portless run with portless.json script field uses that script", () => {
+    it("portly run with portly.json script field uses that script", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({
@@ -1294,12 +1294,12 @@ describe("CLI", () => {
         })
       );
       fs.writeFileSync(
-        path.join(tmpDir, "portless.json"),
+        path.join(tmpDir, "portly.json"),
         JSON.stringify({ name: "myapp", script: "start" })
       );
       const { stdout } = run(["run"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("from-start");
     });
@@ -1313,39 +1313,39 @@ describe("CLI", () => {
         })
       );
       fs.writeFileSync(
-        path.join(tmpDir, "portless.json"),
+        path.join(tmpDir, "portly.json"),
         JSON.stringify({ name: "myapp", script: "dev" })
       );
       const { stdout } = run(["--script", "start", "run"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("from-start");
     });
 
-    it("--name overrides portless.json name", () => {
+    it("--name overrides portly.json name", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo hello" } })
       );
-      fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "config-name" }));
-      // With PORTLESS=0, the name doesn't matter (command runs directly)
+      fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "config-name" }));
+      // With PORTLY=0, the name doesn't matter (command runs directly)
       // but we can verify via the run subcommand help text or named mode.
       // Let's test it goes through without error.
       const { stdout } = run(["--name", "override-name", "echo", "works"], {
         cwd: tmpDir,
-        env: { PORTLESS: "0" },
+        env: { PORTLY: "0" },
       });
       expect(stdout).toContain("works");
     });
 
-    it("portless run with missing script errors clearly", () => {
+    it("portly run with missing script errors clearly", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: {} })
       );
       fs.writeFileSync(
-        path.join(tmpDir, "portless.json"),
+        path.join(tmpDir, "portly.json"),
         JSON.stringify({ name: "myapp", script: "nonexistent" })
       );
       const { status, stderr } = run(["run"], { cwd: tmpDir });
@@ -1353,13 +1353,13 @@ describe("CLI", () => {
       expect(stderr).toContain("No command provided");
     });
 
-    it("portless.json validation rejects invalid appPort", () => {
+    it("portly.json validation rejects invalid appPort", () => {
       fs.writeFileSync(
         path.join(tmpDir, "package.json"),
         JSON.stringify({ name: "test-app", scripts: { dev: "echo hello" } })
       );
       fs.writeFileSync(
-        path.join(tmpDir, "portless.json"),
+        path.join(tmpDir, "portly.json"),
         JSON.stringify({ appPort: "not-a-number" })
       );
       const { status, stderr } = run(["run"], { cwd: tmpDir });
@@ -1374,12 +1374,12 @@ describe("CLI", () => {
       expect(status).toBe(0);
       expect(stdout).toContain("--tailscale");
       expect(stdout).toContain("--funnel");
-      expect(stdout).toContain("PORTLESS_TAILSCALE");
+      expect(stdout).toContain("PORTLY_TAILSCALE");
     });
 
     it("fails with actionable message when tailscale is not installed", () => {
       const { status, stderr } = run(["--tailscale", "myapp", "echo", "hello"], {
-        env: { PATH: "/tmp/portless-no-ts-path" },
+        env: { PATH: "/tmp/portly-no-ts-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("Tailscale");
@@ -1387,15 +1387,15 @@ describe("CLI", () => {
 
     it("fails with --funnel when tailscale is not installed", () => {
       const { status, stderr } = run(["--funnel", "myapp", "echo", "hello"], {
-        env: { PATH: "/tmp/portless-no-ts-path" },
+        env: { PATH: "/tmp/portly-no-ts-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("Tailscale");
     });
 
-    it("accepts PORTLESS_TAILSCALE=1 env var", () => {
+    it("accepts PORTLY_TAILSCALE=1 env var", () => {
       const { status, stderr } = run(["myapp", "echo", "hello"], {
-        env: { PORTLESS_TAILSCALE: "1", PATH: "/tmp/portless-no-ts-path" },
+        env: { PORTLY_TAILSCALE: "1", PATH: "/tmp/portly-no-ts-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("Tailscale");
@@ -1403,19 +1403,19 @@ describe("CLI", () => {
 
     it("accepts --tailscale after app name", () => {
       const { status, stderr } = run(["myapp", "--tailscale", "echo", "hello"], {
-        env: { PATH: "/tmp/portless-no-ts-path" },
+        env: { PATH: "/tmp/portly-no-ts-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("Tailscale");
     });
 
     it("accepts --tailscale in run subcommand", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-ts-run-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-ts-run-"));
       try {
         fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ name: "test-app" }));
         const { status, stderr } = run(["run", "--tailscale", "echo", "hello"], {
           cwd: tmpDir,
-          env: { PATH: "/tmp/portless-no-ts-path" },
+          env: { PATH: "/tmp/portly-no-ts-path" },
         });
         expect(status).toBe(1);
         expect(stderr).toContain("Tailscale");
@@ -1430,21 +1430,21 @@ describe("CLI", () => {
       const { status, stdout } = run(["--help"]);
       expect(status).toBe(0);
       expect(stdout).toContain("--ngrok");
-      expect(stdout).toContain("PORTLESS_NGROK");
-      expect(stdout).toContain("PORTLESS_NGROK_URL");
+      expect(stdout).toContain("PORTLY_NGROK");
+      expect(stdout).toContain("PORTLY_NGROK_URL");
     });
 
     it("fails with actionable message when ngrok is not installed", () => {
       const { status, stderr } = run(["--ngrok", "myapp", "echo", "hello"], {
-        env: { PATH: "/tmp/portless-no-ngrok-path" },
+        env: { PATH: "/tmp/portly-no-ngrok-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("ngrok CLI not found");
     });
 
-    it("accepts PORTLESS_NGROK=1 env var", () => {
+    it("accepts PORTLY_NGROK=1 env var", () => {
       const { status, stderr } = run(["myapp", "echo", "hello"], {
-        env: { PORTLESS_NGROK: "1", PATH: "/tmp/portless-no-ngrok-path" },
+        env: { PORTLY_NGROK: "1", PATH: "/tmp/portly-no-ngrok-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("ngrok CLI not found");
@@ -1452,19 +1452,19 @@ describe("CLI", () => {
 
     it("accepts --ngrok after app name", () => {
       const { status, stderr } = run(["myapp", "--ngrok", "echo", "hello"], {
-        env: { PATH: "/tmp/portless-no-ngrok-path" },
+        env: { PATH: "/tmp/portly-no-ngrok-path" },
       });
       expect(status).toBe(1);
       expect(stderr).toContain("ngrok CLI not found");
     });
 
     it("accepts --ngrok in run subcommand", () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-cli-ngrok-run-"));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-cli-ngrok-run-"));
       try {
         fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ name: "test-app" }));
         const { status, stderr } = run(["run", "--ngrok", "echo", "hello"], {
           cwd: tmpDir,
-          env: { PATH: "/tmp/portless-no-ngrok-path" },
+          env: { PATH: "/tmp/portly-no-ngrok-path" },
         });
         expect(status).toBe(1);
         expect(stderr).toContain("ngrok CLI not found");

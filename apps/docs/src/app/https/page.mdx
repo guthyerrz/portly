@@ -9,7 +9,7 @@ First run generates a local CA and server certs, then adds the CA to your system
 Use your own certs (e.g., from mkcert):
 
 ```bash
-portless proxy start --cert ./cert.pem --key ./key.pem
+portly proxy start --cert ./cert.pem --key ./key.pem
 ```
 
 ## Trust the CA later
@@ -17,7 +17,7 @@ portless proxy start --cert ./cert.pem --key ./key.pem
 If you skipped the trust prompt on first run:
 
 ```bash
-portless trust
+portly trust
 ```
 
 ## Disable HTTPS
@@ -25,5 +25,5 @@ portless trust
 Use `--no-tls` to run with plain HTTP on port 80:
 
 ```bash
-portless proxy start --no-tls
+portly proxy start --no-tls
 ```

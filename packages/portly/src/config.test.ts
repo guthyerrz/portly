@@ -11,12 +11,12 @@ import {
   hasScript,
   splitCommand,
   isServerCommand,
-  loadPackagePortlessConfig,
+  loadPackagePortlyConfig,
   ConfigValidationError,
 } from "./config.js";
 
 function createTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "portless-config-test-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "portly-config-test-"));
 }
 
 function cleanupDir(dir: string): void {
@@ -99,12 +99,12 @@ describe("loadConfig", () => {
     cleanupDir(tmpDir);
   });
 
-  it("returns null when no portless.json exists", () => {
+  it("returns null when no portly.json exists", () => {
     expect(loadConfig(tmpDir)).toBeNull();
   });
 
-  it("loads portless.json from cwd", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "myapp" }));
+  it("loads portly.json from cwd", () => {
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "myapp" }));
     const result = loadConfig(tmpDir);
     expect(result).not.toBeNull();
     expect(result!.config.name).toBe("myapp");
@@ -112,7 +112,7 @@ describe("loadConfig", () => {
   });
 
   it("does not walk up from a subdirectory", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "myapp" }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "myapp" }));
     const subDir = path.join(tmpDir, "src", "components");
     fs.mkdirSync(subDir, { recursive: true });
     expect(loadConfig(subDir)).toBeNull();
@@ -120,14 +120,14 @@ describe("loadConfig", () => {
 
   it("loads config with all fields", () => {
     const config = { name: "myapp", script: "start", appPort: 3000 };
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify(config));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify(config));
     const result = loadConfig(tmpDir);
     expect(result!.config).toEqual(config);
   });
 
   it("loads config with proxy field", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ name: "myapp", proxy: false })
     );
     const result = loadConfig(tmpDir);
@@ -141,23 +141,23 @@ describe("loadConfig", () => {
         "apps/api": { name: "api", script: "start" },
       },
     };
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify(config));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify(config));
     const result = loadConfig(tmpDir);
     expect(result!.config.apps).toBeDefined();
     expect(Object.keys(result!.config.apps!)).toHaveLength(2);
   });
 
   it("loads empty object config", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), "{}");
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), "{}");
     const result = loadConfig(tmpDir);
     expect(result).not.toBeNull();
     expect(result!.config).toEqual({});
   });
 
-  it("loads config from package.json portless key", () => {
+  it("loads config from package.json portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: { name: "myapp", script: "dev" } })
+      JSON.stringify({ name: "test", portly: { name: "myapp", script: "dev" } })
     );
     const result = loadConfig(tmpDir);
     expect(result).not.toBeNull();
@@ -166,35 +166,35 @@ describe("loadConfig", () => {
     expect(result!.configDir).toBe(tmpDir);
   });
 
-  it("loads string shorthand from package.json portless key", () => {
+  it("loads string shorthand from package.json portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: "myapp" })
+      JSON.stringify({ name: "test", portly: "myapp" })
     );
     const result = loadConfig(tmpDir);
     expect(result).not.toBeNull();
     expect(result!.config.name).toBe("myapp");
   });
 
-  it("ignores empty string portless key", () => {
+  it("ignores empty string portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: "" })
+      JSON.stringify({ name: "test", portly: "" })
     );
     expect(loadConfig(tmpDir)).toBeNull();
   });
 
-  it("prefers portless.json over package.json portless key", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "from-file" }));
+  it("prefers portly.json over package.json portly key", () => {
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "from-file" }));
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: { name: "from-pkg" } })
+      JSON.stringify({ name: "test", portly: { name: "from-pkg" } })
     );
     const result = loadConfig(tmpDir);
     expect(result!.config.name).toBe("from-file");
   });
 
-  it("ignores package.json without portless key", () => {
+  it("ignores package.json without portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
       JSON.stringify({ name: "test", scripts: { dev: "next dev" } })
@@ -202,10 +202,10 @@ describe("loadConfig", () => {
     expect(loadConfig(tmpDir)).toBeNull();
   });
 
-  it("does not walk up to find package.json portless key", () => {
+  it("does not walk up to find package.json portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: { name: "root-app" } })
+      JSON.stringify({ name: "test", portly: { name: "root-app" } })
     );
     const subDir = path.join(tmpDir, "packages", "web");
     fs.mkdirSync(subDir, { recursive: true });
@@ -225,51 +225,51 @@ describe("loadConfig validation", () => {
   });
 
   it("throws on invalid JSON", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), "not json");
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), "not json");
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when config is an array", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), "[]");
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), "[]");
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when name is a number", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: 42 }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: 42 }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when name is empty string", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ name: "" }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ name: "" }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when appPort is out of range", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ appPort: 99999 }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ appPort: 99999 }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when appPort is a string", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ appPort: "3000" }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ appPort: "3000" }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when apps entry is not an object", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ apps: { "apps/web": "bad" } })
     );
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when proxy is not a boolean", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ proxy: "false" }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ proxy: "false" }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("accepts turbo as a boolean", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ name: "test", turbo: false })
     );
     const result = loadConfig(tmpDir);
@@ -278,7 +278,7 @@ describe("loadConfig validation", () => {
 
   it("accepts a cloudflare.hostname string", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ name: "test", cloudflare: { hostname: "hooks.example.com" } })
     );
     const result = loadConfig(tmpDir);
@@ -287,7 +287,7 @@ describe("loadConfig validation", () => {
 
   it("throws when cloudflare is not an object", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ cloudflare: "hooks.example.com" })
     );
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
@@ -295,21 +295,21 @@ describe("loadConfig validation", () => {
 
   it("throws when cloudflare.hostname is empty", () => {
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ cloudflare: { hostname: "" } })
     );
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("throws when turbo is not a boolean", () => {
-    fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ turbo: "yes" }));
+    fs.writeFileSync(path.join(tmpDir, "portly.json"), JSON.stringify({ turbo: "yes" }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 
   it("warns on unknown top-level keys", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ name: "myapp", typo: true })
     );
     loadConfig(tmpDir);
@@ -320,7 +320,7 @@ describe("loadConfig validation", () => {
   it("warns on unknown keys in apps entries", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     fs.writeFileSync(
-      path.join(tmpDir, "portless.json"),
+      path.join(tmpDir, "portly.json"),
       JSON.stringify({ apps: { "apps/web": { name: "web", port: 3000 } } })
     );
     loadConfig(tmpDir);
@@ -490,7 +490,7 @@ describe("hasScript", () => {
   });
 });
 
-describe("loadPackagePortlessConfig", () => {
+describe("loadPackagePortlyConfig", () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -501,47 +501,47 @@ describe("loadPackagePortlessConfig", () => {
     cleanupDir(tmpDir);
   });
 
-  it("returns config from package.json portless key", () => {
+  it("returns config from package.json portly key", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: { name: "myapp", script: "start" } })
+      JSON.stringify({ name: "test", portly: { name: "myapp", script: "start" } })
     );
-    const result = loadPackagePortlessConfig(tmpDir);
+    const result = loadPackagePortlyConfig(tmpDir);
     expect(result).toEqual({ name: "myapp", script: "start" });
   });
 
   it("returns config from string shorthand", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: "myapp" })
+      JSON.stringify({ name: "test", portly: "myapp" })
     );
-    const result = loadPackagePortlessConfig(tmpDir);
+    const result = loadPackagePortlyConfig(tmpDir);
     expect(result).toEqual({ name: "myapp" });
   });
 
   it("returns null for empty string shorthand", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: "" })
+      JSON.stringify({ name: "test", portly: "" })
     );
-    expect(loadPackagePortlessConfig(tmpDir)).toBeNull();
+    expect(loadPackagePortlyConfig(tmpDir)).toBeNull();
   });
 
-  it("returns null when no portless key", () => {
+  it("returns null when no portly key", () => {
     fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ name: "test" }));
-    expect(loadPackagePortlessConfig(tmpDir)).toBeNull();
+    expect(loadPackagePortlyConfig(tmpDir)).toBeNull();
   });
 
   it("returns null when no package.json", () => {
-    expect(loadPackagePortlessConfig(tmpDir)).toBeNull();
+    expect(loadPackagePortlyConfig(tmpDir)).toBeNull();
   });
 
-  it("throws ConfigValidationError for invalid portless config", () => {
+  it("throws ConfigValidationError for invalid portly config", () => {
     fs.writeFileSync(
       path.join(tmpDir, "package.json"),
-      JSON.stringify({ name: "test", portless: { appPort: "bad" } })
+      JSON.stringify({ name: "test", portly: { appPort: "bad" } })
     );
-    expect(() => loadPackagePortlessConfig(tmpDir)).toThrow(ConfigValidationError);
+    expect(() => loadPackagePortlyConfig(tmpDir)).toThrow(ConfigValidationError);
   });
 });
 

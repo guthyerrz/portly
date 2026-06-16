@@ -55,7 +55,7 @@ export function ensureEnvLoader(baseDir: string = USER_STATE_DIR): void {
 export interface ManifestEntry {
   PORT: string;
   HOST: string;
-  PORTLESS_URL: string;
+  PORTLY_URL: string;
   NODE_EXTRA_CA_CERTS?: string;
 }
 

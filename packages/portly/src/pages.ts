@@ -202,7 +202,7 @@ export function renderPage(status: number, statusText: string, body: string): st
 <div class="page">
 <div class="hero"><h1>${status}</h1><h2>${statusText}</h2></div>
 ${body}
-<p class="footer">portless</p>
+<p class="footer">portly</p>
 </div>
 </body>
 </html>`;

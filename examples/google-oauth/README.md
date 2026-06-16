@@ -1,6 +1,6 @@
-# Google OAuth with portless
+# Google OAuth with portly
 
-Google OAuth rejects `.localhost` subdomains as redirect URIs. This example shows how to use portless with a custom TLD to get a domain that Google accepts.
+Google OAuth rejects `.localhost` subdomains as redirect URIs. This example shows how to use portly with a custom TLD to get a domain that Google accepts.
 
 ## Why `.localhost` fails
 
@@ -13,23 +13,23 @@ Plain `localhost` works because Google hardcodes it in a whitelist, but subdomai
 
 ## The fix: use any valid TLD
 
-Any TLD in the Public Suffix List works. portless lets you set a custom TLD with `--tld`:
+Any TLD in the Public Suffix List works. portly lets you set a custom TLD with `--tld`:
 
 ```bash
-portless proxy start --tld dev
-portless oauth-test next dev
+portly proxy start --tld dev
+portly oauth-test next dev
 # -> https://oauth-test.dev
 ```
 
-`.dev` is a real gTLD (owned by Google). It requires HTTPS because it's HSTS-preloaded, which portless handles automatically.
+`.dev` is a real gTLD (owned by Google). It requires HTTPS because it's HSTS-preloaded, which portly handles automatically.
 
 ## Recommended: use a domain you own
 
 Using a bare TLD like `.dev` means your local domain (`oauth-test.dev`) could collide with a real domain someone else owns. For safer local development, use a subdomain of a domain you control:
 
 ```bash
-portless proxy start --tld dev
-portless oauth-test.local.ctate next dev
+portly proxy start --tld dev
+portly oauth-test.local.ctate next dev
 # -> https://oauth-test.local.ctate.dev
 ```
 
@@ -37,19 +37,19 @@ Since you own `ctate.dev`, nothing under `local.ctate.dev` will conflict with re
 
 ## Setup
 
-### 1. Install portless
+### 1. Install portly
 
 ```bash
-npm install -g portless
+npm install -g portly
 ```
 
 ### 2. Start the proxy
 
 ```bash
-portless proxy start --tld dev
+portly proxy start --tld dev
 ```
 
-Portless defaults to HTTPS on port 443 (auto-elevates with sudo), so URLs don't need a port number.
+Portly defaults to HTTPS on port 443 (auto-elevates with sudo), so URLs don't need a port number.
 
 ### 3. Create a Google OAuth client
 
@@ -89,7 +89,7 @@ pnpm install
 pnpm dev
 ```
 
-This runs `portless oauth-test next dev`, which serves the app at `https://oauth-test.dev`.
+This runs `portly oauth-test next dev`, which serves the app at `https://oauth-test.dev`.
 
 ### 6. Test
 
@@ -103,4 +103,4 @@ If you only need Google OAuth and don't want to change TLDs, you can add `http:/
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-The downside is you lose the portless benefits (named URLs, no port conflicts) for the OAuth callback flow.
+The downside is you lose the portly benefits (named URLs, no port conflicts) for the OAuth callback flow.

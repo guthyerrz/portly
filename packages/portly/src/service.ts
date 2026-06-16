@@ -16,11 +16,11 @@ import { isMdnsSupported } from "./mdns.js";
 import { fixOwnership } from "./utils.js";
 
 const DEFAULT_SERVICE_PORT = getProtocolPort(true);
-const SERVICE_LABEL = "sh.portless.proxy";
-const SYSTEMD_SERVICE = "portless.service";
-const WINDOWS_TASK_NAME = "Portless Proxy";
-const INTERNAL_ELEVATED_ENV = "PORTLESS_INTERNAL_SERVICE_ELEVATED";
-const SERVICE_ENV_KEYS = new Set(["PORTLESS_SYNC_HOSTS"]);
+const SERVICE_LABEL = "sh.portly.proxy";
+const SYSTEMD_SERVICE = "portly.service";
+const WINDOWS_TASK_NAME = "Portly Proxy";
+const INTERNAL_ELEVATED_ENV = "PORTLY_INTERNAL_SERVICE_ELEVATED";
+const SERVICE_ENV_KEYS = new Set(["PORTLY_SYNC_HOSTS"]);
 
 type SupportedPlatform = "darwin" | "linux" | "win32";
 
@@ -233,40 +233,40 @@ function parseServiceInstallConfig(
     extraEnv: collectServiceExtraEnv(env),
   };
 
-  if (env.PORTLESS_STATE_DIR) {
-    config.stateDir = env.PORTLESS_STATE_DIR;
+  if (env.PORTLY_STATE_DIR) {
+    config.stateDir = env.PORTLY_STATE_DIR;
   }
 
-  const envHttps = parseBooleanEnv(env.PORTLESS_HTTPS);
+  const envHttps = parseBooleanEnv(env.PORTLY_HTTPS);
   if (envHttps !== null) {
     config.useHttps = envHttps;
   }
 
-  const envLan = parseBooleanEnv(env.PORTLESS_LAN);
+  const envLan = parseBooleanEnv(env.PORTLY_LAN);
   if (envLan !== null) {
     config.lanMode = envLan;
   }
 
-  if (env.PORTLESS_LAN_IP) {
+  if (env.PORTLY_LAN_IP) {
     config.lanMode = true;
-    config.lanIp = env.PORTLESS_LAN_IP;
+    config.lanIp = env.PORTLY_LAN_IP;
     config.lanIpExplicit = true;
   }
 
-  if (env.PORTLESS_TLD) {
-    const tld = env.PORTLESS_TLD.trim().toLowerCase();
+  if (env.PORTLY_TLD) {
+    const tld = env.PORTLY_TLD.trim().toLowerCase();
     const err = validateTld(tld);
-    if (err) throw new Error(`PORTLESS_TLD: ${err}`);
+    if (err) throw new Error(`PORTLY_TLD: ${err}`);
     config.tld = tld;
   }
 
-  const envWildcard = parseBooleanEnv(env.PORTLESS_WILDCARD);
+  const envWildcard = parseBooleanEnv(env.PORTLY_WILDCARD);
   if (envWildcard !== null) {
     config.useWildcard = envWildcard;
   }
 
-  if (env.PORTLESS_PORT) {
-    config.proxyPort = parsePortValue(env.PORTLESS_PORT, "PORTLESS_PORT");
+  if (env.PORTLY_PORT) {
+    config.proxyPort = parsePortValue(env.PORTLY_PORT, "PORTLY_PORT");
   } else {
     config.proxyPort = getProtocolPort(config.useHttps);
   }
@@ -338,7 +338,7 @@ function parseServiceInstallConfig(
     throw new Error("--cert and --key must be used together.");
   }
 
-  if (!env.PORTLESS_PORT && !tokens.includes("--port") && !tokens.includes("-p")) {
+  if (!env.PORTLY_PORT && !tokens.includes("--port") && !tokens.includes("-p")) {
     config.proxyPort = getProtocolPort(config.useHttps);
   }
 
@@ -414,22 +414,22 @@ function buildProxyCommand(entryScript: string, serviceConfig: ServiceInstallCon
 
 function buildServiceEnv(ctx: ServiceContext): Record<string, string> {
   const env: Record<string, string> = {
-    PORTLESS_STATE_DIR: ctx.stateDir,
-    PORTLESS_PORT: ctx.config.proxyPort.toString(),
-    PORTLESS_HTTPS: ctx.config.useHttps ? "1" : "0",
-    PORTLESS_LAN: ctx.config.lanMode ? "1" : "0",
-    PORTLESS_WILDCARD: ctx.config.useWildcard ? "1" : "0",
+    PORTLY_STATE_DIR: ctx.stateDir,
+    PORTLY_PORT: ctx.config.proxyPort.toString(),
+    PORTLY_HTTPS: ctx.config.useHttps ? "1" : "0",
+    PORTLY_LAN: ctx.config.lanMode ? "1" : "0",
+    PORTLY_WILDCARD: ctx.config.useWildcard ? "1" : "0",
     ...ctx.config.extraEnv,
   };
 
   if (ctx.config.lanMode && ctx.config.lanIpExplicit && ctx.config.lanIp) {
-    env.PORTLESS_LAN_IP = ctx.config.lanIp;
+    env.PORTLY_LAN_IP = ctx.config.lanIp;
   }
 
   if (ctx.config.lanMode) {
-    env.PORTLESS_TLD = "local";
+    env.PORTLY_TLD = "local";
   } else if (ctx.config.tld !== DEFAULT_TLD) {
-    env.PORTLESS_TLD = ctx.config.tld;
+    env.PORTLY_TLD = ctx.config.tld;
   }
 
   if (ctx.platform === "win32") {
@@ -446,8 +446,8 @@ function buildServiceEnv(ctx: ServiceContext): Record<string, string> {
 
 function defaultStateDir(platform: SupportedPlatform, userHome: string): string {
   return platform === "win32"
-    ? path.win32.join(userHome, ".portless")
-    : path.posix.join(userHome, ".portless");
+    ? path.win32.join(userHome, ".portly")
+    : path.posix.join(userHome, ".portly");
 }
 
 function buildLaunchdPlist(ctx: ServiceContext, programArguments: string[]): string {
@@ -494,7 +494,7 @@ function buildSystemdUnit(ctx: ServiceContext, execStart: string[]): string {
     .join("\n");
 
   return `[Unit]
-Description=Portless HTTPS proxy
+Description=Portly HTTPS proxy
 After=network-online.target
 Wants=network-online.target
 
@@ -591,8 +591,8 @@ export function buildServiceSpec(options: {
     };
   }
 
-  const scriptDir = path.win32.join(ctx.programData, "portless", "service");
-  const scriptPath = path.win32.join(scriptDir, "portless-service.cmd");
+  const scriptDir = path.win32.join(ctx.programData, "portly", "service");
+  const scriptPath = path.win32.join(scriptDir, "portly-service.cmd");
   const script = buildWindowsScript(ctx, proxyCommand);
   const taskRun = windowsQuote(scriptPath);
   return {
@@ -635,7 +635,7 @@ function currentServiceSpec(
   const user = resolveUserContext(process.platform);
   const stateDir =
     installConfig?.stateDir ||
-    process.env.PORTLESS_STATE_DIR ||
+    process.env.PORTLY_STATE_DIR ||
     defaultStateDir(process.platform, user.home);
   const config = installConfig ?? {
     ...DEFAULT_SERVICE_CONFIG,
@@ -789,7 +789,7 @@ function installedConfigFromSnapshot(
       snapshot.env,
       { allowRuntimeFlags: true }
     );
-    const stateDir = parsed.stateDir || snapshot.env.PORTLESS_STATE_DIR || fallback.stateDir;
+    const stateDir = parsed.stateDir || snapshot.env.PORTLY_STATE_DIR || fallback.stateDir;
     return { ...parsed, stateDir };
   } catch {
     return null;
@@ -802,13 +802,13 @@ function readInstalledServiceConfig(spec: ServiceSpec): NormalizedServiceConfig 
   return installedConfigFromSnapshot(snapshot, spec.config);
 }
 
-function collectPortlessEnvArgs(
+function collectPortlyEnvArgs(
   env: NodeJS.ProcessEnv = process.env,
   omit: Set<string> = new Set()
 ): string[] {
   const envArgs: string[] = [];
   for (const key of Object.keys(env)) {
-    if (key.startsWith("PORTLESS_") && env[key] && !omit.has(key)) {
+    if (key.startsWith("PORTLY_") && env[key] && !omit.has(key)) {
       envArgs.push(`${key}=${env[key]}`);
     }
   }
@@ -822,13 +822,13 @@ function buildElevatedEnvArgs(options: {
   extraEnv?: Record<string, string>;
 }): string[] {
   const extraEnv = options.extraEnv ?? {};
-  const overrideKeys = new Set(["PORTLESS_STATE_DIR", ...Object.keys(extraEnv)]);
+  const overrideKeys = new Set(["PORTLY_STATE_DIR", ...Object.keys(extraEnv)]);
   return [
     "env",
-    ...collectPortlessEnvArgs(options.env, overrideKeys),
+    ...collectPortlyEnvArgs(options.env, overrideKeys),
     ...Object.entries(extraEnv).map(([key, value]) => `${key}=${value}`),
     `HOME=${options.home}`,
-    `PORTLESS_STATE_DIR=${options.stateDir}`,
+    `PORTLY_STATE_DIR=${options.stateDir}`,
   ];
 }
 
@@ -843,7 +843,7 @@ export function buildServiceUninstallSudoArgs(
 ): string[] {
   const env = options.env ?? process.env;
   const home = options.home ?? os.homedir();
-  const stateDir = options.stateDir ?? env.PORTLESS_STATE_DIR ?? path.join(home, ".portless");
+  const stateDir = options.stateDir ?? env.PORTLY_STATE_DIR ?? path.join(home, ".portly");
   return [
     ...buildElevatedEnvArgs({ home, stateDir, env }),
     options.nodePath ?? process.execPath,
@@ -859,7 +859,7 @@ function requireUnixElevation(args: string[], runner: CommandRunner): void {
   if (process.env[INTERNAL_ELEVATED_ENV] === "1") return;
 
   const home = os.homedir();
-  const stateDir = process.env.PORTLESS_STATE_DIR || path.join(home, ".portless");
+  const stateDir = process.env.PORTLY_STATE_DIR || path.join(home, ".portly");
   const result = runner(
     "sudo",
     [
@@ -948,7 +948,7 @@ function prepareTrust(stateDir: string): void {
   }
   if (isCATrusted(stateDir)) return;
 
-  console.log(colors.gray("Trusting portless CA for service startup..."));
+  console.log(colors.gray("Trusting portly CA for service startup..."));
   const trustResult = trustCA(stateDir);
   if (trustResult.trusted) {
     console.log(colors.green("CA added to the system trust store."));
@@ -959,7 +959,7 @@ function prepareTrust(stateDir: string): void {
   if (trustResult.error) {
     console.warn(colors.gray(trustResult.error));
   }
-  console.warn(colors.yellow("Run `portless trust` if browsers show certificate warnings."));
+  console.warn(colors.yellow("Run `portly trust` if browsers show certificate warnings."));
 }
 
 function ensureServiceConfigSupported(config: ServiceInstallConfig): void {
@@ -1014,7 +1014,7 @@ async function installService(
     runOptional(runner, "schtasks", spec.runArgs);
   }
 
-  console.log(colors.green("Portless service installed."));
+  console.log(colors.green("Portly service installed."));
   console.log(colors.gray(`State directory: ${spec.stateDir}`));
   console.log(colors.gray(`Proxy port: ${spec.config.proxyPort}`));
 }
@@ -1036,11 +1036,11 @@ async function uninstallService(entryScript: string, runner: CommandRunner): Pro
     fs.rmSync(spec.scriptDir, { recursive: true, force: true });
   }
 
-  console.log(colors.green("Portless service uninstalled."));
+  console.log(colors.green("Portly service uninstalled."));
 }
 
 /**
- * Best-effort service removal for use by `portless clean`. Skips elevation
+ * Best-effort service removal for use by `portly clean`. Skips elevation
  * (caller is expected to already be elevated) and returns a result instead of
  * calling process.exit.
  */
@@ -1141,7 +1141,7 @@ async function getServiceStatus(
 async function printServiceStatus(entryScript: string, runner: CommandRunner): Promise<void> {
   const status = await getServiceStatus(entryScript, runner);
   const config = status.config;
-  console.log(colors.bold("portless service"));
+  console.log(colors.bold("portly service"));
   console.log(`  Manager state: ${status.managerState}`);
   console.log(`  Installed: ${status.installed ? "yes" : "no"}`);
   console.log(
@@ -1162,14 +1162,14 @@ async function printServiceStatus(entryScript: string, runner: CommandRunner): P
 
 export function printServiceHelp(): void {
   console.log(`
-${colors.bold("portless service")} - Start portless automatically when the OS starts.
+${colors.bold("portly service")} - Start portly automatically when the OS starts.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless service install")}             Install and start the HTTPS service on port 443
-  ${colors.cyan("portless service install --lan")}       Enable LAN mode for the startup service
-  ${colors.cyan("portless service install -p 8443")}     Use a custom proxy port
-  ${colors.cyan("portless service uninstall")}           Stop and remove the startup service
-  ${colors.cyan("portless service status")}              Show service and proxy status
+  ${colors.cyan("portly service install")}             Install and start the HTTPS service on port 443
+  ${colors.cyan("portly service install --lan")}       Enable LAN mode for the startup service
+  ${colors.cyan("portly service install -p 8443")}     Use a custom proxy port
+  ${colors.cyan("portly service uninstall")}           Stop and remove the startup service
+  ${colors.cyan("portly service status")}              Show service and proxy status
 
 ${colors.bold("Install options:")}
   -p, --port <number>              Port for the proxy service
@@ -1184,7 +1184,7 @@ ${colors.bold("Install options:")}
   --state-dir <path>               Use a custom service state directory
 
 ${colors.bold("Notes:")}
-  The service uses the default clean URL mode unless options or PORTLESS_*
+  The service uses the default clean URL mode unless options or PORTLY_*
   environment variables are provided during install.
   macOS and Linux install a root-owned service so port 443 can bind at boot.
   Windows installs a Task Scheduler startup task that runs as SYSTEM.

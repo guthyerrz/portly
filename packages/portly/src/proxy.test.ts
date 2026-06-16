@@ -6,7 +6,7 @@ import * as https from "node:https";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createProxyServer, PORTLESS_HEADER } from "./proxy.js";
+import { createProxyServer, PORTLY_HEADER } from "./proxy.js";
 import type { ProxyServer } from "./proxy.js";
 import type { RouteInfo } from "./types.js";
 import { ensureCerts } from "./certs.js";
@@ -389,8 +389,8 @@ describe("createProxyServer", () => {
     });
   });
 
-  describe("X-Portless header", () => {
-    it("includes X-Portless header on 404 responses", async () => {
+  describe("X-Portly header", () => {
+    it("includes X-Portly header on 404 responses", async () => {
       const routes: RouteInfo[] = [];
       const server = trackServer(
         createProxyServer({ getRoutes: () => routes, proxyPort: TEST_PROXY_PORT })
@@ -398,10 +398,10 @@ describe("createProxyServer", () => {
       await listen(server);
 
       const res = await request(server, { host: "unknown.localhost" });
-      expect(res.headers[PORTLESS_HEADER.toLowerCase()]).toBe("1");
+      expect(res.headers[PORTLY_HEADER.toLowerCase()]).toBe("1");
     });
 
-    it("includes X-Portless header on 400 responses", async () => {
+    it("includes X-Portly header on 400 responses", async () => {
       const routes: RouteInfo[] = [];
       const server = trackServer(
         createProxyServer({ getRoutes: () => routes, proxyPort: TEST_PROXY_PORT })
@@ -409,12 +409,12 @@ describe("createProxyServer", () => {
       await listen(server);
 
       const res = await request(server, { host: "" });
-      expect(res.headers[PORTLESS_HEADER.toLowerCase()]).toBe("1");
+      expect(res.headers[PORTLY_HEADER.toLowerCase()]).toBe("1");
     });
   });
 
   describe("proxy loop detection", () => {
-    it("returns 508 when X-Portless-Hops reaches the threshold", async () => {
+    it("returns 508 when X-Portly-Hops reaches the threshold", async () => {
       const backend = trackServer(
         http.createServer((_req, res) => {
           res.writeHead(200);
@@ -448,7 +448,7 @@ describe("createProxyServer", () => {
             method: "GET",
             headers: {
               host: "app.localhost",
-              "x-portless-hops": "5",
+              "x-portly-hops": "5",
             },
           },
           (res) => {
@@ -497,7 +497,7 @@ describe("createProxyServer", () => {
             method: "GET",
             headers: {
               host: "app.localhost",
-              "x-portless-hops": "2",
+              "x-portly-hops": "2",
             },
           },
           (res) => {
@@ -514,11 +514,11 @@ describe("createProxyServer", () => {
       expect(res.body).toBe("ok");
     });
 
-    it("increments X-Portless-Hops when forwarding to backend", async () => {
+    it("increments X-Portly-Hops when forwarding to backend", async () => {
       let receivedHops = "";
       const backend = trackServer(
         http.createServer((req, res) => {
-          receivedHops = req.headers["x-portless-hops"] as string;
+          receivedHops = req.headers["x-portly-hops"] as string;
           res.writeHead(200);
           res.end("ok");
         })
@@ -550,7 +550,7 @@ describe("createProxyServer", () => {
             method: "GET",
             headers: {
               host: "myapp.localhost",
-              "x-portless-hops": "3",
+              "x-portly-hops": "3",
             },
           },
           (res) => {
@@ -602,7 +602,7 @@ describe("createProxyServer", () => {
             host: "ws.localhost",
             connection: "Upgrade",
             upgrade: "websocket",
-            "x-portless-hops": "5",
+            "x-portly-hops": "5",
           },
         });
         req.on("error", () => resolve(true));
@@ -629,7 +629,7 @@ describe("createProxyServer", () => {
       const proxyAddr = proxyServer.address();
       if (!proxyAddr || typeof proxyAddr === "string") throw new Error("no addr");
 
-      // Backend that proxies /api requests back through portless with the
+      // Backend that proxies /api requests back through portly with the
       // same Host header (simulates Vite without changeOrigin: true)
       const loopingBackend = trackServer(
         http.createServer((req, res) => {
@@ -705,7 +705,7 @@ describe("createProxyServer", () => {
       const res = await request(server, { host: "unknown.test" });
       expect(res.status).toBe(404);
       expect(res.body).toContain("unknown.test");
-      expect(res.body).toContain("portless unknown your-command");
+      expect(res.body).toContain("portly unknown your-command");
     });
 
     it("uses custom TLD in 508 loop detection page", async () => {
@@ -742,7 +742,7 @@ describe("createProxyServer", () => {
             method: "GET",
             headers: {
               host: "app.test",
-              "x-portless-hops": "5",
+              "x-portly-hops": "5",
             },
           },
           (res) => {
@@ -970,7 +970,7 @@ describe("createProxyServer with TLS (HTTP/2)", () => {
   }
 
   beforeAll(() => {
-    certDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-proxy-test-"));
+    certDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-proxy-test-"));
     const certs = ensureCerts(certDir);
     tlsCert = fs.readFileSync(certs.certPath);
     tlsKey = fs.readFileSync(certs.keyPath);
@@ -1040,7 +1040,7 @@ describe("createProxyServer with TLS (HTTP/2)", () => {
     expect(res.body).toContain("Not Found");
   });
 
-  it("includes X-Portless header on TLS responses", async () => {
+  it("includes X-Portly header on TLS responses", async () => {
     const routes: RouteInfo[] = [];
     const server = trackServer(
       createProxyServer({
@@ -1052,7 +1052,7 @@ describe("createProxyServer with TLS (HTTP/2)", () => {
     await listen(server);
 
     const res = await httpsRequest(server, { host: "unknown.localhost" });
-    expect(res.headers[PORTLESS_HEADER.toLowerCase()]).toBe("1");
+    expect(res.headers[PORTLY_HEADER.toLowerCase()]).toBe("1");
   });
 
   it("proxies HTTPS request to matching route", async () => {
@@ -1339,7 +1339,7 @@ describe("createProxyServer with TLS (HTTP/2)", () => {
     expect(res.headers.location).toBe(`https://myapp.localhost:${TEST_PROXY_PORT}/`);
   });
 
-  it("includes X-Portless header in HTTP-to-HTTPS redirect", async () => {
+  it("includes X-Portly header in HTTP-to-HTTPS redirect", async () => {
     const server = trackServer(
       createProxyServer({
         getRoutes: () => [],
@@ -1351,7 +1351,7 @@ describe("createProxyServer with TLS (HTTP/2)", () => {
 
     const res = await request(server, { host: "myapp.localhost" });
     expect(res.status).toBe(302);
-    expect(res.headers["x-portless"]).toBe("1");
+    expect(res.headers["x-portly"]).toBe("1");
   });
 
   it("strips hop-by-hop headers from proxied TLS responses (HTTP/2 client)", async () => {

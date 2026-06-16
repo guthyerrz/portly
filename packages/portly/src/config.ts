@@ -21,21 +21,21 @@ export interface AppConfig {
   cloudflare?: CloudflareConfig;
 }
 
-export interface PortlessConfig extends AppConfig {
+export interface PortlyConfig extends AppConfig {
   apps?: Record<string, AppConfig>;
   turbo?: boolean;
 }
 
 export interface LoadedConfig {
-  config: PortlessConfig;
+  config: PortlyConfig;
   configDir: string;
 }
 
-const CONFIG_FILENAME = "portless.json";
+const CONFIG_FILENAME = "portly.json";
 
 /**
- * Load portless config from `cwd`. Checks `portless.json` first, then
- * falls back to a `"portless"` key in `package.json`. Does not walk up
+ * Load portly config from `cwd`. Checks `portly.json` first, then
+ * falls back to a `"portly"` key in `package.json`. Does not walk up
  * to parent directories.
  */
 export function loadConfig(cwd: string = process.cwd()): LoadedConfig | null {
@@ -56,8 +56,8 @@ export function loadConfig(cwd: string = process.cwd()): LoadedConfig | null {
   }
 }
 
-/** Normalize the raw `"portless"` value: a string is shorthand for `{ name }`. */
-function normalizePortlessValue(value: unknown): unknown {
+/** Normalize the raw `"portly"` value: a string is shorthand for `{ name }`. */
+function normalizePortlyValue(value: unknown): unknown {
   if (typeof value === "string") {
     return value.trim() ? { name: value.trim() } : null;
   }
@@ -69,11 +69,11 @@ function loadConfigFromPackageJson(dir: string): LoadedConfig | null {
   try {
     const raw = fs.readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(raw);
-    if (pkg && typeof pkg === "object" && "portless" in pkg) {
-      const config = normalizePortlessValue(pkg.portless);
+    if (pkg && typeof pkg === "object" && "portly" in pkg) {
+      const config = normalizePortlyValue(pkg.portly);
       if (config === null) return null;
-      validateConfig(config, `${pkgPath} "portless"`);
-      return { config: config as PortlessConfig, configDir: dir };
+      validateConfig(config, `${pkgPath} "portly"`);
+      return { config: config as PortlyConfig, configDir: dir };
     }
   } catch (err) {
     if (isErrnoException(err) && err.code === "ENOENT") return null;
@@ -84,19 +84,19 @@ function loadConfigFromPackageJson(dir: string): LoadedConfig | null {
 }
 
 /**
- * Load the `"portless"` config from a specific directory's package.json
+ * Load the `"portly"` config from a specific directory's package.json
  * (does not walk up). Returns the AppConfig fields or null.
  */
-export function loadPackagePortlessConfig(dir: string): AppConfig | null {
+export function loadPackagePortlyConfig(dir: string): AppConfig | null {
   const pkgPath = path.join(dir, "package.json");
   try {
     const raw = fs.readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(raw);
-    if (pkg && typeof pkg === "object" && "portless" in pkg) {
-      const config = normalizePortlessValue(pkg.portless);
+    if (pkg && typeof pkg === "object" && "portly" in pkg) {
+      const config = normalizePortlyValue(pkg.portly);
       if (config === null) return null;
       if (typeof config === "object" && !Array.isArray(config)) {
-        validateAppConfig(config as Record<string, unknown>, "portless", pkgPath);
+        validateAppConfig(config as Record<string, unknown>, "portly", pkgPath);
         return config as AppConfig;
       }
     }
@@ -112,7 +112,7 @@ export function loadPackagePortlessConfig(dir: string): AppConfig | null {
  * the relative path upward. Otherwise return the top-level fields.
  */
 export function resolveAppConfig(
-  config: PortlessConfig,
+  config: PortlyConfig,
   configDir: string,
   packageDir: string
 ): AppConfig {
@@ -332,7 +332,7 @@ function validateCloudflare(value: unknown, prefix: string, configPath: string):
   }
 }
 
-function validateConfig(config: unknown, configPath: string): asserts config is PortlessConfig {
+function validateConfig(config: unknown, configPath: string): asserts config is PortlyConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
     throw new ConfigValidationError(`${configPath} must be a JSON object.`);
   }

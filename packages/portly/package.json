@@ -1,5 +1,5 @@
 {
-  "name": "portless",
+  "name": "portly",
   "version": "0.14.0",
   "description": "Replace port numbers with stable, named .localhost URLs. For humans and agents.",
   "type": "module",
@@ -12,7 +12,7 @@
     }
   },
   "bin": {
-    "portless": "./dist/cli.js"
+    "portly": "./dist/cli.js"
   },
   "files": [
     "dist"
@@ -46,11 +46,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/portless.git"
+    "url": "https://github.com/guthyerrz/portly.git"
   },
-  "homepage": "https://portless.sh",
+  "homepage": "https://portly.sh",
   "bugs": {
-    "url": "https://github.com/vercel-labs/portless/issues"
+    "url": "https://github.com/guthyerrz/portly/issues"
   },
   "devDependencies": {
     "@types/node": "^24.12.4",

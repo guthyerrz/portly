@@ -14,7 +14,7 @@ import {
 } from "./turbo.js";
 
 function createTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "portless-turbo-test-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "portly-turbo-test-"));
 }
 
 function cleanupDir(dir: string): void {
@@ -95,7 +95,7 @@ describe("writeManifest / removeManifest", () => {
       "/path/to/app": {
         PORT: "3001",
         HOST: "127.0.0.1",
-        PORTLESS_URL: "https://app.project.local",
+        PORTLY_URL: "https://app.project.local",
       },
     };
     writeManifest(entries, tmpDir);
@@ -108,13 +108,13 @@ describe("writeManifest / removeManifest", () => {
       "/path/to/app": {
         PORT: "3001",
         HOST: "127.0.0.1",
-        PORTLESS_URL: "https://app.project.local",
-        NODE_EXTRA_CA_CERTS: "/home/user/.portless/ca.pem",
+        PORTLY_URL: "https://app.project.local",
+        NODE_EXTRA_CA_CERTS: "/home/user/.portly/ca.pem",
       },
     };
     writeManifest(entries, tmpDir);
     const raw = fs.readFileSync(manifestPath(tmpDir), "utf-8");
-    expect(JSON.parse(raw)["/path/to/app"].NODE_EXTRA_CA_CERTS).toBe("/home/user/.portless/ca.pem");
+    expect(JSON.parse(raw)["/path/to/app"].NODE_EXTRA_CA_CERTS).toBe("/home/user/.portly/ca.pem");
   });
 
   it("removeManifest deletes the file", () => {
@@ -175,11 +175,11 @@ describe("loaderSource", () => {
   });
 
   it("escapes backslashes for Windows paths", () => {
-    const source = loaderSource("C:\\Users\\test\\.portless");
+    const source = loaderSource("C:\\Users\\test\\.portly");
     expect(source).toContain("dev-manifest.json");
     // JSON.stringify produces doubled backslashes in the JS source text.
     // Verify exactly doubled (not quadrupled from a redundant manual escape).
-    expect(source).toContain("C:\\\\Users\\\\test\\\\.portless");
+    expect(source).toContain("C:\\\\Users\\\\test\\\\.portly");
     expect(source).not.toContain("C:\\\\\\\\Users");
   });
 });

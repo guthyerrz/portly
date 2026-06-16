@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as readline from "node:readline";
 import { execSync, spawn } from "node:child_process";
-import { PORTLESS_HEADER } from "./proxy.js";
+import { PORTLY_HEADER } from "./proxy.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -28,7 +28,7 @@ export const DEFAULT_PROXY_PORT = FALLBACK_PROXY_PORT;
 export const PRIVILEGED_PORT_THRESHOLD = 1024;
 
 /** Internal env var used to preserve an auto-detected LAN IP across daemonization. */
-export const INTERNAL_LAN_IP_ENV = "PORTLESS_INTERNAL_LAN_IP";
+export const INTERNAL_LAN_IP_ENV = "PORTLY_INTERNAL_LAN_IP";
 
 /** Internal-only flag used to pass an auto-detected LAN IP through re-exec. */
 export const INTERNAL_LAN_IP_FLAG = "--lan-ip-auto";
@@ -37,12 +37,10 @@ export const INTERNAL_LAN_IP_FLAG = "--lan-ip-auto";
  * @deprecated No longer used. All state now lives in USER_STATE_DIR.
  * Kept as a read-only reference for migration and cleanup of old installs.
  */
-export const LEGACY_SYSTEM_STATE_DIR = isWindows
-  ? path.join(os.tmpdir(), "portless")
-  : "/tmp/portless";
+export const LEGACY_SYSTEM_STATE_DIR = isWindows ? path.join(os.tmpdir(), "portly") : "/tmp/portly";
 
 /** Per-user state directory. All proxy state lives here regardless of port. */
-export const USER_STATE_DIR = path.join(os.homedir(), ".portless");
+export const USER_STATE_DIR = path.join(os.homedir(), ".portly");
 
 /** Minimum app port when finding a free port. */
 const MIN_APP_PORT = 4000;
@@ -133,13 +131,13 @@ export function getProtocolPort(tls: boolean): number {
 }
 
 /**
- * Return the effective default proxy port. Reads the PORTLESS_PORT env var
+ * Return the effective default proxy port. Reads the PORTLY_PORT env var
  * first, then falls back to the protocol-standard port (443 for HTTPS,
  * 80 for HTTP). When `tls` is undefined the legacy fallback (1355) is used
  * so callers that don't yet know the protocol get backward-compatible behavior.
  */
 export function getDefaultPort(tls?: boolean): number {
-  const envPort = process.env.PORTLESS_PORT;
+  const envPort = process.env.PORTLY_PORT;
   if (envPort) {
     const port = parseInt(envPort, 10);
     if (!isNaN(port) && port >= 1 && port <= 65535) return port;
@@ -153,10 +151,10 @@ export function getDefaultPort(tls?: boolean): number {
 
 /**
  * Determine the state directory for a given proxy port.
- * Always returns USER_STATE_DIR (~/.portless) unless PORTLESS_STATE_DIR is set.
+ * Always returns USER_STATE_DIR (~/.portly) unless PORTLY_STATE_DIR is set.
  */
 export function resolveStateDir(_port?: number): string {
-  if (process.env.PORTLESS_STATE_DIR) return process.env.PORTLESS_STATE_DIR;
+  if (process.env.PORTLY_STATE_DIR) return process.env.PORTLY_STATE_DIR;
   return USER_STATE_DIR;
 }
 
@@ -227,7 +225,7 @@ export function writeLanMarker(dir: string, ip: string | null): void {
   }
 }
 
-/** Default TLD when PORTLESS_TLD is not set. */
+/** Default TLD when PORTLY_TLD is not set. */
 export const DEFAULT_TLD = "localhost";
 
 /** TLDs that work but have known pitfalls worth warning about. */
@@ -285,14 +283,14 @@ export function writeTldFile(dir: string, tld: string): void {
 }
 
 /**
- * Return the effective TLD. Reads the PORTLESS_TLD env var first,
+ * Return the effective TLD. Reads the PORTLY_TLD env var first,
  * falling back to DEFAULT_TLD ("localhost"). Throws on invalid values.
  */
 export function getDefaultTld(): string {
-  const val = process.env.PORTLESS_TLD?.trim().toLowerCase();
+  const val = process.env.PORTLY_TLD?.trim().toLowerCase();
   if (!val) return DEFAULT_TLD;
   const err = validateTld(val);
-  if (err) throw new Error(`PORTLESS_TLD: ${err}`);
+  if (err) throw new Error(`PORTLY_TLD: ${err}`);
   return val;
 }
 
@@ -301,33 +299,33 @@ export function getDefaultTld(): string {
  * check whether it is disabled rather than enabled.
  */
 export function isHttpsEnvEnabled(): boolean {
-  const val = process.env.PORTLESS_HTTPS;
+  const val = process.env.PORTLY_HTTPS;
   return val === "1" || val === "true";
 }
 
 /**
- * Return whether HTTPS is explicitly disabled via the PORTLESS_HTTPS env var.
- * PORTLESS_HTTPS=0 is the env-var equivalent of --no-tls.
+ * Return whether HTTPS is explicitly disabled via the PORTLY_HTTPS env var.
+ * PORTLY_HTTPS=0 is the env-var equivalent of --no-tls.
  */
 export function isHttpsEnvDisabled(): boolean {
-  const val = process.env.PORTLESS_HTTPS;
+  const val = process.env.PORTLY_HTTPS;
   return val === "0" || val === "false";
 }
 
 /**
  * Return whether wildcard subdomain fallback is requested via the
- * PORTLESS_WILDCARD env var.
+ * PORTLY_WILDCARD env var.
  */
 export function isWildcardEnvEnabled(): boolean {
-  const val = process.env.PORTLESS_WILDCARD;
+  const val = process.env.PORTLY_WILDCARD;
   return val === "1" || val === "true";
 }
 
 /**
- * Return whether LAN mode is requested via the PORTLESS_LAN env var.
+ * Return whether LAN mode is requested via the PORTLY_LAN env var.
  */
 export function isLanEnvEnabled(): boolean {
-  const val = process.env.PORTLESS_LAN;
+  const val = process.env.PORTLY_LAN;
   return val === "1" || val === "true";
 }
 
@@ -345,7 +343,7 @@ export function readPersistedProxyState(): {
   tld: string;
   lanMode: boolean;
 } | null {
-  const dir = process.env.PORTLESS_STATE_DIR || USER_STATE_DIR;
+  const dir = process.env.PORTLY_STATE_DIR || USER_STATE_DIR;
   const port = readPortFromDir(dir);
   if (port !== null) {
     const tls = readTlsMarker(dir);
@@ -419,7 +417,7 @@ export function buildProxyStartConfig(options: {
 /**
  * Discover the active proxy's state directory, port, TLS mode, TLD, LAN mode,
  * and current LAN IP when available.
- * Checks the user-level dir first, then the legacy /tmp/portless dir as a
+ * Checks the user-level dir first, then the legacy /tmp/portly dir as a
  * read-only fallback for proxies started with older versions.
  */
 export async function discoverState(): Promise<{
@@ -431,8 +429,8 @@ export async function discoverState(): Promise<{
   lanIp: string | null;
 }> {
   // Env var override
-  if (process.env.PORTLESS_STATE_DIR) {
-    const dir = process.env.PORTLESS_STATE_DIR;
+  if (process.env.PORTLY_STATE_DIR) {
+    const dir = process.env.PORTLY_STATE_DIR;
     const port = readPortFromDir(dir) ?? getDefaultPort();
     const lanIp = readLanMarker(dir);
     if ((await isProxyRunning(port)) || (await isPortListening(port))) {
@@ -451,7 +449,7 @@ export async function discoverState(): Promise<{
     };
   }
 
-  // Check user-level state first (~/.portless)
+  // Check user-level state first (~/.portly)
   const userPort = readPortFromDir(USER_STATE_DIR);
   if (userPort !== null) {
     // Always use plain HTTP for the liveness check. The TLS-enabled proxy
@@ -472,7 +470,7 @@ export async function discoverState(): Promise<{
     }
   }
 
-  // Check legacy system-level state (/tmp/portless) for proxies started with
+  // Check legacy system-level state (/tmp/portly) for proxies started with
   // older versions. Read-only: no root operations are performed on this path.
   const legacyPort = readPortFromDir(LEGACY_SYSTEM_STATE_DIR);
   if (legacyPort !== null) {
@@ -493,7 +491,7 @@ export async function discoverState(): Promise<{
 
   // State files didn't help. Probe well-known ports as a last resort.
   // Standard ports first (443, 80) since those are the new defaults, then the
-  // legacy fallback port, then any PORTLESS_PORT override.
+  // legacy fallback port, then any PORTLY_PORT override.
   const configuredPort = getDefaultPort();
   const probePorts = new Set([443, 80, FALLBACK_PROXY_PORT, configuredPort]);
   for (const port of probePorts) {
@@ -569,9 +567,9 @@ export async function findFreePort(
 }
 
 /**
- * Check if a portless proxy is listening on the given port at 127.0.0.1.
- * Makes an HTTP(S) request and verifies the X-Portless response header to
- * distinguish the portless proxy from unrelated services.
+ * Check if a portly proxy is listening on the given port at 127.0.0.1.
+ * Makes an HTTP(S) request and verifies the X-Portly response header to
+ * distinguish the portly proxy from unrelated services.
  *
  * When `tls` is true, uses HTTPS with certificate verification disabled
  * (the proxy may use a self-signed or locally-trusted CA cert).
@@ -590,7 +588,7 @@ export function isProxyRunning(port: number, tls = false): Promise<boolean> {
       },
       (res) => {
         res.resume();
-        resolve(res.headers[PORTLESS_HEADER.toLowerCase()] === "1");
+        resolve(res.headers[PORTLY_HEADER.toLowerCase()] === "1");
       }
     );
     req.on("error", () => resolve(false));
@@ -928,7 +926,7 @@ function findFrameworkBasename(commandArgs: string[]): string | null {
  * Handles both direct invocation (`vite dev`) and invocation via package
  * runners (`bunx --bun vite dev`, `npx vite dev`, `yarn dlx vite dev`).
  *
- * The portless proxy connects to 127.0.0.1 (IPv4), so we also inject
+ * The portly proxy connects to 127.0.0.1 (IPv4), so we also inject
  * `--host 127.0.0.1` to prevent frameworks from binding to IPv6 `::1`.
  *
  * Note: Expo's `--host` flag is *not* a bind address (it is a connection mode:

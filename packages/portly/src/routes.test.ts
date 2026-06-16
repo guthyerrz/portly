@@ -11,7 +11,7 @@ describe("RouteStore", () => {
   let store: RouteStore;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-routes-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-routes-test-"));
     store = new RouteStore(tmpDir);
   });
 

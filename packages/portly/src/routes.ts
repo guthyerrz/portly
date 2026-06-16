@@ -259,7 +259,7 @@ export class RouteStore {
 
   /**
    * Load all routes from disk without filtering out dead PIDs. Used by
-   * `portless prune` to discover stale entries whose owning CLI is gone
+   * `portly prune` to discover stale entries whose owning CLI is gone
    * but whose dev server may still be holding a port.
    */
   loadRoutesRaw(): RouteMapping[] {

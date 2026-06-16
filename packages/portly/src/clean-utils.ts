@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { LEGACY_SYSTEM_STATE_DIR, USER_STATE_DIR } from "./cli-utils.js";
 
-/** Filenames portless creates under a state directory (allowlisted for clean). */
-const PORTLESS_STATE_FILES = [
+/** Filenames portly creates under a state directory (allowlisted for clean). */
+const PORTLY_STATE_FILES = [
   "routes.json",
   "routes.lock",
   "proxy.pid",
@@ -25,7 +25,7 @@ const HOST_CERTS_DIR = "host-certs";
 
 /**
  * Unique existing state directories to consider for cleanup: user dir, system
- * dir, and PORTLESS_STATE_DIR when set.
+ * dir, and PORTLY_STATE_DIR when set.
  */
 export function collectStateDirsForCleanup(): string[] {
   const dirs = new Set<string>();
@@ -37,16 +37,16 @@ export function collectStateDirsForCleanup(): string[] {
   };
   add(USER_STATE_DIR);
   add(LEGACY_SYSTEM_STATE_DIR);
-  add(process.env.PORTLESS_STATE_DIR);
+  add(process.env.PORTLY_STATE_DIR);
   return [...dirs];
 }
 
 /**
- * Best-effort removal of portless state files under dir. Only known filenames
+ * Best-effort removal of portly state files under dir. Only known filenames
  * are deleted; other files in the directory are left intact.
  */
-export function removePortlessStateFiles(dir: string): void {
-  for (const f of PORTLESS_STATE_FILES) {
+export function removePortlyStateFiles(dir: string): void {
+  for (const f of PORTLY_STATE_FILES) {
     try {
       fs.unlinkSync(path.join(dir, f));
     } catch {

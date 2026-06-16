@@ -31,10 +31,10 @@ jobs:
       - name: Compare package.json version to npm and check GitHub release
         id: check
         run: |
-          LOCAL_VERSION=$(node -p "require('./packages/portless/package.json').version")
+          LOCAL_VERSION=$(node -p "require('./packages/portly/package.json').version")
           echo "Local version: $LOCAL_VERSION"
 
-          NPM_VERSION=$(npm view portless version 2>/dev/null || echo "0.0.0")
+          NPM_VERSION=$(npm view portly version 2>/dev/null || echo "0.0.0")
           echo "npm version: $NPM_VERSION"
 
           if [ "$LOCAL_VERSION" != "$NPM_VERSION" ]; then
@@ -95,7 +95,7 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --provenance
-        working-directory: packages/portless
+        working-directory: packages/portly
 
   github-release:
     name: Create GitHub Release

@@ -116,7 +116,7 @@ describe("inferProjectName", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-test-"));
   });
 
   afterEach(() => {
@@ -194,7 +194,7 @@ describe("detectWorktreePrefix", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-test-"));
   });
 
   afterEach(() => {
@@ -329,7 +329,7 @@ describe("detectWorktreePrefix (git CLI path)", { timeout: 15_000 }, () => {
   try {
     execFileSync("git", ["--version"], { stdio: "ignore" });
     // Also verify git init actually works (may be blocked in sandboxes)
-    const probe = fs.mkdtempSync(path.join(os.tmpdir(), "portless-git-probe-"));
+    const probe = fs.mkdtempSync(path.join(os.tmpdir(), "portly-git-probe-"));
     try {
       execFileSync("git", ["init"], { cwd: probe, stdio: "ignore" });
     } finally {
@@ -373,7 +373,7 @@ describe("detectWorktreePrefix (git CLI path)", { timeout: 15_000 }, () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-git-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-git-test-"));
   });
 
   afterEach(() => {

@@ -24,7 +24,7 @@ describe("ensureCerts", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-certs-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-certs-test-"));
   });
 
   afterEach(() => {
@@ -93,7 +93,7 @@ describe("ensureCerts", () => {
     // Regression: -CAcreateserial derived .srl path using the last dot in the
     // full path, so a dot in $HOME (e.g. /Users/ashish.jaiswal) caused
     // "Permission denied" when openssl tried to write outside the state dir.
-    const dotDir = path.join(tmpDir, "user.name", ".portless");
+    const dotDir = path.join(tmpDir, "user.name", ".portly");
     fs.mkdirSync(dotDir, { recursive: true });
 
     const result = ensureCerts(dotDir);
@@ -206,7 +206,7 @@ describe("createSNICallback", () => {
   let defaultKey: Buffer;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-sni-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-sni-test-"));
     const certs = ensureCerts(tmpDir);
     defaultCert = fs.readFileSync(certs.certPath);
     defaultKey = fs.readFileSync(certs.keyPath);
@@ -335,7 +335,7 @@ describe("isCATrusted", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-trust-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-trust-test-"));
   });
 
   afterEach(() => {
@@ -355,7 +355,7 @@ describe("trustCA", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-trust-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-trust-test-"));
   });
 
   afterEach(() => {
@@ -366,7 +366,7 @@ describe("trustCA", () => {
     const result = trustCA(tmpDir);
     expect(result.trusted).toBe(false);
     expect(result.error).toContain("CA certificate not found");
-    expect(result.error).toContain("portless trust");
+    expect(result.error).toContain("portly trust");
   });
 
   it.skipIf(process.platform !== "darwin")(
@@ -376,7 +376,7 @@ describe("trustCA", () => {
       ensureCerts(tmpDir);
 
       // Create a fake security binary that always fails
-      const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-fake-sec-"));
+      const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-fake-sec-"));
       const fakePath = path.join(fakeBinDir, "security");
       fs.writeFileSync(fakePath, "#!/bin/sh\nexit 1\n");
       fs.chmodSync(fakePath, 0o755);
@@ -401,7 +401,7 @@ describe("untrustCA", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portless-untrust-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "portly-untrust-test-"));
   });
 
   afterEach(() => {

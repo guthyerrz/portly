@@ -81,7 +81,7 @@ import {
   writeTldFile,
   writeTlsMarker,
 } from "./cli-utils.js";
-import { collectStateDirsForCleanup, removePortlessStateFiles } from "./clean-utils.js";
+import { collectStateDirsForCleanup, removePortlyStateFiles } from "./clean-utils.js";
 import {
   getLocalNetworkIp,
   isMdnsSupported,
@@ -98,7 +98,7 @@ import {
   isServerCommand,
   splitCommand,
   detectPackageManager,
-  loadPackagePortlessConfig,
+  loadPackagePortlyConfig,
   ConfigValidationError,
 } from "./config.js";
 import type { AppConfig } from "./config.js";
@@ -313,7 +313,7 @@ function formatProxyStartCommand(proxyPort: number, config: ProxyConfig): string
     includePort: proxyPort !== getDefaultPort(config.useHttps),
     proxyPort,
   });
-  return `${needsSudo ? "sudo " : ""}portless proxy start${args.length > 0 ? ` ${args.join(" ")}` : ""}`;
+  return `${needsSudo ? "sudo " : ""}portly proxy start${args.length > 0 ? ` ${args.join(" ")}` : ""}`;
 }
 
 function printProxyConfigMismatch(
@@ -330,32 +330,32 @@ function printProxyConfigMismatch(
     console.error(chalk.yellow(`- ${message}`));
   }
   console.error(chalk.blue("Stop it first, then restart with the desired settings:"));
-  console.error(chalk.cyan(`  ${needsSudo ? "sudo " : ""}portless proxy stop${portFlag}`));
+  console.error(chalk.cyan(`  ${needsSudo ? "sudo " : ""}portly proxy stop${portFlag}`));
   console.error(chalk.cyan(`  ${formatProxyStartCommand(proxyPort, desiredConfig)}`));
   process.exit(1);
 }
 
 /**
- * Return the path to the portless entry script. Guards against the
+ * Return the path to the portly entry script. Guards against the
  * (unlikely) case where process.argv[1] is undefined.
  */
 function getEntryScript(): string {
   const script = process.argv[1];
   if (!script) {
-    throw new Error("Cannot determine portless entry script (process.argv[1] is undefined)");
+    throw new Error("Cannot determine portly entry script (process.argv[1] is undefined)");
   }
   return script;
 }
 
 /**
- * Check whether portless is installed as a project dependency by walking
- * up from cwd looking for node_modules/portless. Used to distinguish a
- * local `npx portless` (allowed) from a one-off download (blocked).
+ * Check whether portly is installed as a project dependency by walking
+ * up from cwd looking for node_modules/portly. Used to distinguish a
+ * local `npx portly` (allowed) from a one-off download (blocked).
  */
 function isLocallyInstalled(): boolean {
   let dir = process.cwd();
   for (;;) {
-    if (fs.existsSync(path.join(dir, "node_modules", "portless", "package.json"))) {
+    if (fs.existsSync(path.join(dir, "node_modules", "portly", "package.json"))) {
       return true;
     }
     const parent = path.dirname(dir);
@@ -366,13 +366,13 @@ function isLocallyInstalled(): boolean {
 }
 
 /**
- * Collect PORTLESS_* env vars as KEY=VALUE strings suitable for
+ * Collect PORTLY_* env vars as KEY=VALUE strings suitable for
  * `sudo env KEY=VAL ...` invocations (sudo may strip the environment).
  */
-function collectPortlessEnvArgs(): string[] {
+function collectPortlyEnvArgs(): string[] {
   const envArgs: string[] = [];
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith("PORTLESS_") && process.env[key]) {
+    if (key.startsWith("PORTLY_") && process.env[key]) {
       envArgs.push(`${key}=${process.env[key]}`);
     }
   }
@@ -380,12 +380,12 @@ function collectPortlessEnvArgs(): string[] {
 }
 
 /**
- * Re-run `portless proxy stop` under sudo. Returns true if sudo succeeded.
+ * Re-run `portly proxy stop` under sudo. Returns true if sudo succeeded.
  */
 function sudoStop(port: number): boolean {
   const stopArgs = [process.execPath, getEntryScript(), "proxy", "stop", "-p", String(port)];
   console.log(colors.yellow("Proxy is running as root. Elevating with sudo to stop it..."));
-  const result = spawnSync("sudo", ["env", ...collectPortlessEnvArgs(), ...stopArgs], {
+  const result = spawnSync("sudo", ["env", ...collectPortlyEnvArgs(), ...stopArgs], {
     stdio: "inherit",
     timeout: SUDO_SPAWN_TIMEOUT_MS,
   });
@@ -399,7 +399,7 @@ function runCleanWithSudo(reason: string): boolean {
     "sudo",
     [
       "env",
-      ...collectPortlessEnvArgs(),
+      ...collectPortlyEnvArgs(),
       ...(home ? [`HOME=${home}`] : []),
       process.execPath,
       getEntryScript(),
@@ -449,7 +449,7 @@ function startProxyServer(
   const isTls = !!tlsOptions;
   const mdnsSupport = isMdnsSupported();
   let activeLanIp = lanIp && mdnsSupport.supported ? lanIp : null;
-  const lanIpPinned = !!process.env.PORTLESS_LAN_IP;
+  const lanIpPinned = !!process.env.PORTLY_LAN_IP;
   let lanMonitor: ReturnType<typeof startLanIpMonitor> | null = null;
   if (lanIp && !mdnsSupport.supported) {
     const reason = mdnsSupport.reason ?? "mDNS publishing is not supported on this platform.";
@@ -474,7 +474,7 @@ function startProxyServer(
   let watcher: fs.FSWatcher | null = null;
   let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-  const autoSyncHosts = shouldAutoSyncHosts(process.env.PORTLESS_SYNC_HOSTS);
+  const autoSyncHosts = shouldAutoSyncHosts(process.env.PORTLY_SYNC_HOSTS);
 
   const onMdnsError = (msg: string) => console.warn(chalk.yellow(msg));
 
@@ -567,7 +567,7 @@ function startProxyServer(
     if (err.code === "EADDRINUSE") {
       console.error(colors.red(`Port ${proxyPort} is already in use.`));
       console.error(colors.blue("Stop the existing proxy first:"));
-      console.error(colors.cyan("  portless proxy stop"));
+      console.error(colors.cyan("  portly proxy stop"));
       console.error(colors.blue("Or check what is using the port:"));
       console.error(
         colors.cyan(
@@ -577,7 +577,7 @@ function startProxyServer(
     } else if (err.code === "EACCES") {
       console.error(colors.red(`Permission denied for port ${proxyPort}.`));
       console.error(colors.blue("Use an unprivileged port (no sudo needed):"));
-      console.error(colors.cyan("  portless proxy start -p 1355"));
+      console.error(colors.cyan("  portly proxy start -p 1355"));
     } else {
       console.error(colors.red(`Proxy error: ${err.message}`));
     }
@@ -684,12 +684,12 @@ function sudoStopOrHint(port: number): void {
     if (!sudoStop(port)) {
       console.error(colors.red("Failed to stop proxy with sudo."));
       console.error(colors.blue("Try manually:"));
-      console.error(colors.cyan(`  portless proxy stop -p ${port}`));
+      console.error(colors.cyan(`  portly proxy stop -p ${port}`));
     }
   } else {
     console.error(colors.red("Permission denied. The proxy was started with elevated privileges."));
     console.error(colors.blue("Stop it with:"));
-    console.error(colors.cyan("  Run portless proxy stop as Administrator"));
+    console.error(colors.cyan("  Run portly proxy stop as Administrator"));
   }
 }
 
@@ -827,7 +827,7 @@ function listRoutes(store: RouteStore, proxyPort: number, tls: boolean): void {
 
   if (routes.length === 0) {
     console.log(colors.yellow("No active routes."));
-    console.log(colors.gray("Start an app with: portless <name> <command>"));
+    console.log(colors.gray("Start an app with: portly <name> <command>"));
     return;
   }
 
@@ -866,12 +866,12 @@ interface ProxyDesiredState {
 function resolveProxyDesiredState(lanMode: boolean): ProxyDesiredState {
   const envTld = getDefaultTld();
   const explicit: ProxyConfigExplicitness = {
-    useHttps: process.env.PORTLESS_HTTPS !== undefined,
+    useHttps: process.env.PORTLY_HTTPS !== undefined,
     customCert: false,
-    lanMode: process.env.PORTLESS_LAN !== undefined,
-    lanIp: process.env.PORTLESS_LAN_IP !== undefined,
-    tld: process.env.PORTLESS_TLD !== undefined,
-    useWildcard: process.env.PORTLESS_WILDCARD !== undefined,
+    lanMode: process.env.PORTLY_LAN !== undefined,
+    lanIp: process.env.PORTLY_LAN_IP !== undefined,
+    tld: process.env.PORTLY_TLD !== undefined,
+    useWildcard: process.env.PORTLY_WILDCARD !== undefined,
   };
   const desiredConfig = resolveProxyConfig({
     persistedLanMode: lanMode,
@@ -881,7 +881,7 @@ function resolveProxyDesiredState(lanMode: boolean): ProxyDesiredState {
     customCertPath: null,
     customKeyPath: null,
     lanMode: isLanEnvEnabled(),
-    lanIp: process.env.PORTLESS_LAN_IP || null,
+    lanIp: process.env.PORTLY_LAN_IP || null,
     tld: envTld,
     useWildcard: isWildcardEnvEnabled(),
   });
@@ -902,7 +902,7 @@ async function ensureProxyRunning(
 
   const proxyResponsive = await isProxyRunning(proxyPort, tls);
   const proxyListeningFromStateDir =
-    !!process.env.PORTLESS_STATE_DIR && (await isPortListening(proxyPort));
+    !!process.env.PORTLY_STATE_DIR && (await isPortListening(proxyPort));
 
   if (proxyResponsive || proxyListeningFromStateDir) {
     return { started: false };
@@ -1011,17 +1011,17 @@ async function runApp(
   lanIp?: string | null
 ) {
   let store = initialStore;
-  console.log(chalk.blue.bold(`\nportless\n`));
+  console.log(chalk.blue.bold(`\nportly\n`));
 
   // Check tailscale readiness early, before auto-starting the proxy.
   // No point starting the proxy if tailscale will fail afterward.
-  const wantsFunnel = isEnabledEnv(process.env.PORTLESS_FUNNEL);
-  const wantsTailscale = wantsFunnel || isEnabledEnv(process.env.PORTLESS_TAILSCALE);
-  const wantsNgrok = isEnabledEnv(process.env.PORTLESS_NGROK);
-  const wantsCloudflared = isEnabledEnv(process.env.PORTLESS_CLOUDFLARE);
+  const wantsFunnel = isEnabledEnv(process.env.PORTLY_FUNNEL);
+  const wantsTailscale = wantsFunnel || isEnabledEnv(process.env.PORTLY_TAILSCALE);
+  const wantsNgrok = isEnabledEnv(process.env.PORTLY_NGROK);
+  const wantsCloudflared = isEnabledEnv(process.env.PORTLY_CLOUDFLARE);
   // A hostname upgrades --cloudflare from an anonymous quick tunnel to a stable
   // named tunnel backed by the user's own Cloudflare account + domain.
-  const cloudflaredHostname = process.env.PORTLESS_CLOUDFLARE_HOSTNAME?.trim() || undefined;
+  const cloudflaredHostname = process.env.PORTLY_CLOUDFLARE_HOSTNAME?.trim() || undefined;
   let tsBaseUrl: string | undefined;
 
   if (wantsTailscale) {
@@ -1075,7 +1075,7 @@ async function runApp(
           )
         );
       } else if (message.includes("tunnel login")) {
-        console.error(colors.cyan("  portless tunnel login"));
+        console.error(colors.cyan("  portly tunnel login"));
       }
       process.exit(1);
     }
@@ -1130,7 +1130,7 @@ async function runApp(
   if (desired.envTld !== DEFAULT_TLD && desired.envTld !== tld) {
     console.warn(
       chalk.yellow(
-        `Warning: PORTLESS_TLD=${desired.envTld} but the running proxy uses .${tld}. Using .${tld}.`
+        `Warning: PORTLY_TLD=${desired.envTld} but the running proxy uses .${tld}. Using .${tld}.`
       )
     );
   }
@@ -1400,7 +1400,7 @@ async function runApp(
       const message = err instanceof Error ? err.message : String(err);
       console.error(colors.red(`Error: ${message}`));
       if (message.includes("tunnel login")) {
-        console.error(colors.cyan("  portless tunnel login"));
+        console.error(colors.cyan("  portly tunnel login"));
       } else if (message.includes("not found")) {
         console.error(
           colors.blue(
@@ -1461,20 +1461,20 @@ async function runApp(
   const isExpoLan = isExpo && (lanMode || isLanEnvEnabled());
   const hostBind = isExpoLan ? undefined : "127.0.0.1";
 
-  // Ensure PORTLESS_LAN is propagated to child processes when the proxy
+  // Ensure PORTLY_LAN is propagated to child processes when the proxy
   // was started with --lan separately and discovered from the state marker,
   // not from the env var.
-  if (lanMode && !process.env.PORTLESS_LAN) {
-    process.env.PORTLESS_LAN = "1";
+  if (lanMode && !process.env.PORTLY_LAN) {
+    process.env.PORTLY_LAN = "1";
   }
 
   // Inject --port for frameworks that ignore the PORT env var (e.g. Vite)
   injectFrameworkFlags(commandArgs, port);
 
-  // Point Node.js at the portless CA so server-side fetches (e.g. Next.js
-  // Server Components) trust portless-proxied HTTPS services. Node.js does
+  // Point Node.js at the portly CA so server-side fetches (e.g. Next.js
+  // Server Components) trust portly-proxied HTTPS services. Node.js does
   // not use the system trust store, so without this env var it rejects the
-  // portless CA as "self-signed certificate in certificate chain".
+  // portly CA as "self-signed certificate in certificate chain".
   // Respect any value the user already set. Note: we check process.env here
   // rather than the constructed child env because the child env inherits from
   // process.env via spread. If a future code path injects NODE_EXTRA_CA_CERTS
@@ -1493,7 +1493,7 @@ async function runApp(
     : "";
   console.log(
     chalk.gray(
-      `Running: PORT=${port}${hostBind ? ` HOST=${hostBind}` : ""} PORTLESS_URL=${finalUrl}${caFragment} ${commandArgs.join(" ")}\n`
+      `Running: PORT=${port}${hostBind ? ` HOST=${hostBind}` : ""} PORTLY_URL=${finalUrl}${caFragment} ${commandArgs.join(" ")}\n`
     )
   );
 
@@ -1502,15 +1502,15 @@ async function runApp(
       ...process.env,
       PORT: port.toString(),
       ...(hostBind ? { HOST: hostBind } : {}),
-      PORTLESS_URL: finalUrl,
+      PORTLY_URL: finalUrl,
       __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: `.${tld}`,
       // Note: EXPO_PACKAGER_PROXY_URL is not used — expo-dev-client removed
       // baked-in pinging, making this env var ineffective. Expo handles its
       // own LAN discovery natively.
-      ...(lanMode ? { PORTLESS_LAN: "1" } : {}),
-      ...(tailscaleUrl ? { PORTLESS_TAILSCALE_URL: tailscaleUrl } : {}),
-      ...(ngrokUrl ? { PORTLESS_NGROK_URL: ngrokUrl } : {}),
-      ...(cloudflaredUrl ? { PORTLESS_CLOUDFLARE_URL: cloudflaredUrl } : {}),
+      ...(lanMode ? { PORTLY_LAN: "1" } : {}),
+      ...(tailscaleUrl ? { PORTLY_TAILSCALE_URL: tailscaleUrl } : {}),
+      ...(ngrokUrl ? { PORTLY_NGROK_URL: ngrokUrl } : {}),
+      ...(cloudflaredUrl ? { PORTLY_CLOUDFLARE_URL: cloudflaredUrl } : {}),
       ...caEnv,
     },
     onCleanup: () => {
@@ -1568,11 +1568,11 @@ function parseAppPort(value: string | undefined): number {
 }
 
 function appPortFromEnv(): number | undefined {
-  const envVal = process.env.PORTLESS_APP_PORT;
+  const envVal = process.env.PORTLY_APP_PORT;
   if (!envVal) return undefined;
   const port = parseInt(envVal, 10);
   if (isNaN(port) || port < 1 || port > 65535) {
-    console.error(colors.red(`Error: Invalid PORTLESS_APP_PORT="${envVal}". Must be 1-65535.`));
+    console.error(colors.red(`Error: Invalid PORTLY_APP_PORT="${envVal}". Must be 1-65535.`));
     process.exit(1);
   }
   return port;
@@ -1580,20 +1580,20 @@ function appPortFromEnv(): number | undefined {
 
 function applySharingFlag(flag: string): boolean {
   if (flag === "--tailscale") {
-    process.env.PORTLESS_TAILSCALE = "1";
+    process.env.PORTLY_TAILSCALE = "1";
     return true;
   }
   if (flag === "--funnel") {
-    process.env.PORTLESS_FUNNEL = "1";
-    process.env.PORTLESS_TAILSCALE = "1";
+    process.env.PORTLY_FUNNEL = "1";
+    process.env.PORTLY_TAILSCALE = "1";
     return true;
   }
   if (flag === "--ngrok") {
-    process.env.PORTLESS_NGROK = "1";
+    process.env.PORTLY_NGROK = "1";
     return true;
   }
   if (flag === "--cloudflare") {
-    process.env.PORTLESS_CLOUDFLARE = "1";
+    process.env.PORTLY_CLOUDFLARE = "1";
     return true;
   }
   return false;
@@ -1618,10 +1618,10 @@ function parseRunArgs(args: string[]): ParsedRunArgs {
       break;
     } else if (args[i] === "--help" || args[i] === "-h") {
       console.log(`
-${colors.bold("portless run")} - Infer project name and run through the proxy.
+${colors.bold("portly run")} - Infer project name and run through the proxy.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless run [options] [command...]")}
+  ${colors.cyan("portly run [options] [command...]")}
 
   When no command is given, runs the configured script (default: "dev")
   from package.json.
@@ -1638,7 +1638,7 @@ ${colors.bold("Options:")}
   --help, -h             Show this help
 
 ${colors.bold("Name inference (in order):")}
-  1. portless.json "name" field
+  1. portly.json "name" field
   2. package.json "name" field (walks up directories)
   3. Git repo root directory name
   4. Current directory basename
@@ -1648,11 +1648,11 @@ ${colors.bold("Name inference (in order):")}
   (e.g. feature-auth.myapp.localhost).
 
 ${colors.bold("Examples:")}
-  portless run                        # Run dev script through proxy
-  portless run next dev               # -> https://<project>.localhost
-  portless run --name myapp next dev  # -> https://myapp.localhost
-  portless run vite dev               # -> https://<project>.localhost
-  portless run --app-port 3000 pnpm start
+  portly run                        # Run dev script through proxy
+  portly run next dev               # -> https://<project>.localhost
+  portly run --name myapp next dev  # -> https://myapp.localhost
+  portly run vite dev               # -> https://<project>.localhost
+  portly run --app-port 3000 pnpm start
 `);
       process.exit(0);
     } else if (args[i] === "--force") {
@@ -1664,7 +1664,7 @@ ${colors.bold("Examples:")}
       i++;
       if (!args[i] || args[i].startsWith("-")) {
         console.error(colors.red("Error: --name requires a name value."));
-        console.error(colors.cyan("  portless run --name <name> <command...>"));
+        console.error(colors.cyan("  portly run --name <name> <command...>"));
         process.exit(1);
       }
       name = args[i];
@@ -1727,7 +1727,7 @@ function parseAppArgs(args: string[]): ParsedAppArgs {
   const name = args[i];
   i++;
 
-  // Allow flags immediately after name (e.g. `portless myapp --force next dev`)
+  // Allow flags immediately after name (e.g. `portly myapp --force next dev`)
   while (i < args.length && args[i].startsWith("--")) {
     if (args[i] === "--") {
       i++;
@@ -1762,57 +1762,57 @@ function parseAppArgs(args: string[]): ParsedAppArgs {
 
 function printHelp(): void {
   console.log(`
-${colors.bold("portless")} - Replace port numbers with stable, named .localhost URLs. For humans and agents.
+${colors.bold("portly")} - Replace port numbers with stable, named .localhost URLs. For humans and agents.
 
 Eliminates port conflicts, memorizing port numbers, and cookie/storage
 clashes by giving each dev server a stable .localhost URL.
 
 ${colors.bold("Install:")}
-  ${colors.cyan("npm install -g portless")}          Global (recommended)
-  ${colors.cyan("npm install -D portless")}          Project dev dependency
+  ${colors.cyan("npm install -g portly")}          Global (recommended)
+  ${colors.cyan("npm install -D portly")}          Project dev dependency
 
 ${colors.bold("Requirements:")}
   Node.js 24+
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless")}                         Run dev script through proxy
-  ${colors.cyan("portless")}                         From monorepo root: run all workspace packages
-  ${colors.cyan("portless run")}                     Same as above
-  ${colors.cyan("portless run <cmd>")}               Run a command through the proxy
-  ${colors.cyan("portless <name> <cmd>")}            Run with an explicit app name
-  ${colors.cyan("portless proxy start")}             Start the proxy (HTTPS on port 443, daemon); rarely needed since it auto-starts on first run
-  ${colors.cyan("portless proxy stop")}              Stop the proxy
-  ${colors.cyan("portless service install")}         Start proxy automatically when the OS starts
-  ${colors.cyan("portless get <name>")}              Print URL for a service (for cross-service refs)
-  ${colors.cyan("portless alias <name> <port>")}     Register a static route (e.g. for Docker)
-  ${colors.cyan("portless alias --remove <name>")}   Remove a static route
-  ${colors.cyan("portless list")}                    Show active routes
-  ${colors.cyan("portless trust")}                   Add local CA to system trust store
-  ${colors.cyan("portless clean")}                   Remove portless state, trust entry, and hosts block
-  ${colors.cyan("portless prune")}                   Kill orphaned dev servers from crashed sessions
-  ${colors.cyan("portless hosts sync")}              Add routes to ${HOSTS_DISPLAY} (fixes Safari)
-  ${colors.cyan("portless hosts clean")}             Remove portless entries from ${HOSTS_DISPLAY}
+  ${colors.cyan("portly")}                         Run dev script through proxy
+  ${colors.cyan("portly")}                         From monorepo root: run all workspace packages
+  ${colors.cyan("portly run")}                     Same as above
+  ${colors.cyan("portly run <cmd>")}               Run a command through the proxy
+  ${colors.cyan("portly <name> <cmd>")}            Run with an explicit app name
+  ${colors.cyan("portly proxy start")}             Start the proxy (HTTPS on port 443, daemon); rarely needed since it auto-starts on first run
+  ${colors.cyan("portly proxy stop")}              Stop the proxy
+  ${colors.cyan("portly service install")}         Start proxy automatically when the OS starts
+  ${colors.cyan("portly get <name>")}              Print URL for a service (for cross-service refs)
+  ${colors.cyan("portly alias <name> <port>")}     Register a static route (e.g. for Docker)
+  ${colors.cyan("portly alias --remove <name>")}   Remove a static route
+  ${colors.cyan("portly list")}                    Show active routes
+  ${colors.cyan("portly trust")}                   Add local CA to system trust store
+  ${colors.cyan("portly clean")}                   Remove portly state, trust entry, and hosts block
+  ${colors.cyan("portly prune")}                   Kill orphaned dev servers from crashed sessions
+  ${colors.cyan("portly hosts sync")}              Add routes to ${HOSTS_DISPLAY} (fixes Safari)
+  ${colors.cyan("portly hosts clean")}             Remove portly entries from ${HOSTS_DISPLAY}
 
 ${colors.bold("Examples:")}
-  portless                            # Run dev script through proxy
-  portless                            # From monorepo root: start all apps
-  portless --script start             # Run "start" script instead of "dev"
-  portless myapp next dev             # -> https://myapp.localhost
-  portless run next dev               # -> https://<project>.localhost
-  portless run next dev               # in worktree -> https://<worktree>.<project>.localhost
-  portless service install            # Start HTTPS proxy on OS startup
-  portless service install --lan      # Persist LAN mode in the startup service
-  portless service install --wildcard # Persist wildcard routing in the startup service
-  portless get backend                # -> https://backend.localhost
-  portless myapp --tailscale next dev # -> also https://<node>.ts.net (tailnet)
-  portless myapp --funnel next dev    # -> also https://<node>.ts.net (public)
-  portless myapp --ngrok next dev     # -> also https://<random>.ngrok.app (public)
-  portless myapp --cloudflare next dev # -> also https://<random>.trycloudflare.com (public)
-  portless myapp --hostname h.you.com next dev # -> also https://h.you.com (stable, named)
+  portly                            # Run dev script through proxy
+  portly                            # From monorepo root: start all apps
+  portly --script start             # Run "start" script instead of "dev"
+  portly myapp next dev             # -> https://myapp.localhost
+  portly run next dev               # -> https://<project>.localhost
+  portly run next dev               # in worktree -> https://<worktree>.<project>.localhost
+  portly service install            # Start HTTPS proxy on OS startup
+  portly service install --lan      # Persist LAN mode in the startup service
+  portly service install --wildcard # Persist wildcard routing in the startup service
+  portly get backend                # -> https://backend.localhost
+  portly myapp --tailscale next dev # -> also https://<node>.ts.net (tailnet)
+  portly myapp --funnel next dev    # -> also https://<node>.ts.net (public)
+  portly myapp --ngrok next dev     # -> also https://<random>.ngrok.app (public)
+  portly myapp --cloudflare next dev # -> also https://<random>.trycloudflare.com (public)
+  portly myapp --hostname h.you.com next dev # -> also https://h.you.com (stable, named)
 
-${colors.bold("Configuration (portless.json):")}
-  Optional. Portless works out of the box by running the "dev" script
-  from package.json. Use portless.json to override defaults.
+${colors.bold("Configuration (portly.json):")}
+  Optional. Portly works out of the box by running the "dev" script
+  from package.json. Use portly.json to override defaults.
 
   Override name:   { "name": "myapp" }
   Override script: { "name": "myapp", "script": "start" }
@@ -1824,9 +1824,9 @@ ${colors.bold("In package.json:")}
       "dev": "next dev"
     }
   }
-  Then run: portless
-  Or:       portless run
-  Or:       portless run next dev
+  Then run: portly
+  Or:       portly run
+  Or:       portly run next dev
 
 ${colors.bold("How it works:")}
   1. Start the proxy once (HTTPS on port 443 by default, auto-elevates with sudo)
@@ -1840,7 +1840,7 @@ ${colors.bold("How it works:")}
 
 ${colors.bold("HTTP/2 + HTTPS (default):")}
   HTTPS with HTTP/2 multiplexing is enabled by default (faster page loads).
-  On first use, portless generates a local CA and adds it to your
+  On first use, portly generates a local CA and adds it to your
   system trust store. No browser warnings. Disable with --no-tls.
 
 ${colors.bold("LAN mode:")}
@@ -1852,12 +1852,12 @@ ${colors.bold("LAN mode:")}
   Stopped LAN proxies keep LAN mode for the next start via proxy.lan.
   All proxy settings are persisted and reused on auto-start unless
   overridden by explicit flags or env vars.
-  Use PORTLESS_LAN=0 for one start to switch back to .localhost mode.
+  Use PORTLY_LAN=0 for one start to switch back to .localhost mode.
   If a proxy is already running with different explicit LAN/TLS/TLD settings,
   stop it first.
-  ${colors.cyan("portless proxy start --lan")}
-  ${colors.cyan("portless proxy start --lan --https")}
-  ${colors.cyan("portless proxy start --lan --ip 192.168.1.42")}
+  ${colors.cyan("portly proxy start --lan")}
+  ${colors.cyan("portly proxy start --lan --https")}
+  ${colors.cyan("portly proxy start --lan --ip 192.168.1.42")}
 
 ${colors.bold("Tailscale sharing:")}
   Use --tailscale to share your dev server with teammates on your tailnet.
@@ -1867,26 +1867,26 @@ ${colors.bold("Tailscale sharing:")}
   Tailscale Funnel. Requires Tailscale CLI to be installed and connected,
   with Tailscale HTTPS certificates enabled. Funnel must also be enabled
   on your tailnet.
-  ${colors.cyan("portless myapp --tailscale next dev")}
-  ${colors.cyan("portless myapp --funnel next dev")}
+  ${colors.cyan("portly myapp --tailscale next dev")}
+  ${colors.cyan("portly myapp --funnel next dev")}
 
 ${colors.bold("ngrok sharing:")}
   Use --ngrok to expose your dev server to the public internet with ngrok.
   Requires the ngrok CLI to be installed and authenticated.
-  ${colors.cyan("portless myapp --ngrok next dev")}
+  ${colors.cyan("portly myapp --ngrok next dev")}
 
 ${colors.bold("Cloudflare sharing:")}
   Use --cloudflare for an anonymous Cloudflare quick tunnel. Requires only the
   cloudflared CLI; no account, login, or domain. The *.trycloudflare.com URL is
   meant for testing — it rotates between runs and may be rate-limited, so it is
   not suitable for stable webhook registration.
-  ${colors.cyan("portless myapp --cloudflare next dev")}
+  ${colors.cyan("portly myapp --cloudflare next dev")}
 
   Add --hostname for a stable named tunnel on your own Cloudflare domain. The
   tunnel and DNS record persist across runs, so the URL stays registered with
-  webhook providers. Authorize a domain once with "portless tunnel login".
-  ${colors.cyan("portless tunnel login")}
-  ${colors.cyan("portless myapp --cloudflare --hostname hooks.example.com next dev")}
+  webhook providers. Authorize a domain once with "portly tunnel login".
+  ${colors.cyan("portly tunnel login")}
+  ${colors.cyan("portly myapp --cloudflare --hostname hooks.example.com next dev")}
 
 ${colors.bold("Options:")}
   run [--name <name>] <cmd>      Infer project name (or override with --name)
@@ -1915,48 +1915,48 @@ ${colors.bold("Options:")}
   --                            Stop flag parsing; everything after is passed to the child
 
 ${colors.bold("Environment variables:")}
-  PORTLESS_PORT=<number>        Override the default proxy port (e.g. in .bashrc)
-  PORTLESS_APP_PORT=<number>    Use a fixed port for the app (same as --app-port)
-  PORTLESS_HTTPS=0              Disable HTTPS (same as --no-tls)
-  PORTLESS_LAN=1                Enable LAN mode when set to 1 (set in .bashrc / .zshrc)
-  PORTLESS_LAN_IP=<address>     Pin a specific LAN IP for LAN mode
-  PORTLESS_TLD=<tld>            Use a custom TLD (e.g. test, dev; default: localhost)
-  PORTLESS_WILDCARD=1           Allow unregistered subdomains to fall back to parent route
-  PORTLESS_SYNC_HOSTS=0         Disable auto-sync of ${HOSTS_DISPLAY} (on by default)
-  PORTLESS_TAILSCALE=1          Share apps on your Tailscale network (same as --tailscale)
-  PORTLESS_FUNNEL=1             Share apps publicly via Tailscale Funnel (same as --funnel)
-  PORTLESS_NGROK=1              Share apps publicly via ngrok (same as --ngrok)
-  PORTLESS_CLOUDFLARE=1         Share apps publicly via Cloudflare quick tunnel (same as --cloudflare)
-  PORTLESS_CLOUDFLARE_HOSTNAME  Stable hostname for a named Cloudflare tunnel (same as --hostname)
-  PORTLESS_STATE_DIR=<path>     Override the state directory
-  PORTLESS=0                    Run command directly without proxy
+  PORTLY_PORT=<number>        Override the default proxy port (e.g. in .bashrc)
+  PORTLY_APP_PORT=<number>    Use a fixed port for the app (same as --app-port)
+  PORTLY_HTTPS=0              Disable HTTPS (same as --no-tls)
+  PORTLY_LAN=1                Enable LAN mode when set to 1 (set in .bashrc / .zshrc)
+  PORTLY_LAN_IP=<address>     Pin a specific LAN IP for LAN mode
+  PORTLY_TLD=<tld>            Use a custom TLD (e.g. test, dev; default: localhost)
+  PORTLY_WILDCARD=1           Allow unregistered subdomains to fall back to parent route
+  PORTLY_SYNC_HOSTS=0         Disable auto-sync of ${HOSTS_DISPLAY} (on by default)
+  PORTLY_TAILSCALE=1          Share apps on your Tailscale network (same as --tailscale)
+  PORTLY_FUNNEL=1             Share apps publicly via Tailscale Funnel (same as --funnel)
+  PORTLY_NGROK=1              Share apps publicly via ngrok (same as --ngrok)
+  PORTLY_CLOUDFLARE=1         Share apps publicly via Cloudflare quick tunnel (same as --cloudflare)
+  PORTLY_CLOUDFLARE_HOSTNAME  Stable hostname for a named Cloudflare tunnel (same as --hostname)
+  PORTLY_STATE_DIR=<path>     Override the state directory
+  PORTLY=0                    Run command directly without proxy
 
 ${colors.bold("Child process environment:")}
   PORT                          Ephemeral port the child should listen on
   HOST                          Usually 127.0.0.1 (omitted for Expo in LAN mode)
-  PORTLESS_URL                  Public URL of the app (e.g. https://myapp.localhost)
-  PORTLESS_LAN                  Set to 1 when proxy is in LAN mode
-  PORTLESS_TAILSCALE_URL        Tailscale URL of the app (when --tailscale is active)
-  PORTLESS_NGROK_URL            ngrok URL of the app (when --ngrok is active)
-  PORTLESS_CLOUDFLARE_URL       Cloudflare quick tunnel URL of the app (when --cloudflare is active)
-  NODE_EXTRA_CA_CERTS           Path to the portless CA (set when HTTPS is active)
+  PORTLY_URL                  Public URL of the app (e.g. https://myapp.localhost)
+  PORTLY_LAN                  Set to 1 when proxy is in LAN mode
+  PORTLY_TAILSCALE_URL        Tailscale URL of the app (when --tailscale is active)
+  PORTLY_NGROK_URL            ngrok URL of the app (when --ngrok is active)
+  PORTLY_CLOUDFLARE_URL       Cloudflare quick tunnel URL of the app (when --cloudflare is active)
+  NODE_EXTRA_CA_CERTS           Path to the portly CA (set when HTTPS is active)
 
 ${colors.bold("Safari / DNS:")}
   .localhost subdomains auto-resolve in Chrome, Firefox, and Edge.
   Safari relies on the system DNS resolver, which may not handle them.
   Auto-syncs ${HOSTS_DISPLAY} for route hostnames by default (including .localhost,
-  custom TLDs, and LAN .local). Set PORTLESS_SYNC_HOSTS=0 to disable. To manually sync:
-    ${colors.cyan("portless hosts sync")}
+  custom TLDs, and LAN .local). Set PORTLY_SYNC_HOSTS=0 to disable. To manually sync:
+    ${colors.cyan("portly hosts sync")}
   Clean up later with:
-    ${colors.cyan("portless hosts clean")}
+    ${colors.cyan("portly hosts clean")}
 
-${colors.bold("Skip portless:")}
-  PORTLESS=0 pnpm dev           # Runs command directly without proxy
+${colors.bold("Skip portly:")}
+  PORTLY=0 pnpm dev           # Runs command directly without proxy
 
 ${colors.bold("Reserved names:")}
   run, get, alias, hosts, list, trust, clean, prune, proxy, service, tunnel are subcommands
-  and cannot be used as app names directly. Use "portless run" to infer the name,
-  or "portless --name <name>" to force any name including reserved ones.
+  and cannot be used as app names directly. Use "portly run" to infer the name,
+  or "portly --name <name>" to force any name including reserved ones.
 `);
   process.exit(0);
 }
@@ -1978,7 +1978,7 @@ async function handleTrust(): Promise<void> {
   const result = trustCA(dir);
   if (result.trusted) {
     console.log(colors.green("Local CA added to system trust store."));
-    console.log(colors.gray("Browsers will now trust portless HTTPS certificates."));
+    console.log(colors.gray("Browsers will now trust portly HTTPS certificates."));
     return;
   }
 
@@ -1992,8 +1992,8 @@ async function handleTrust(): Promise<void> {
       "sudo",
       [
         "env",
-        ...collectPortlessEnvArgs(),
-        `PORTLESS_STATE_DIR=${dir}`,
+        ...collectPortlyEnvArgs(),
+        `PORTLY_STATE_DIR=${dir}`,
         process.execPath,
         getEntryScript(),
         "trust",
@@ -2014,12 +2014,12 @@ async function handleTrust(): Promise<void> {
 async function handleClean(args: string[]): Promise<void> {
   if (args[1] === "--help" || args[1] === "-h") {
     console.log(`
-${colors.bold("portless clean")} - Remove portless artifacts from this machine.
+${colors.bold("portly clean")} - Remove portly artifacts from this machine.
 
 Stops the proxy if it is running, uninstalls the startup service if installed,
-removes the local CA from the OS trust store when it was installed by portless,
-deletes known files under state directories (~/.portless, the system state
-directory, and PORTLESS_STATE_DIR when set), and removes the portless block
+removes the local CA from the OS trust store when it was installed by portly,
+deletes known files under state directories (~/.portly, the system state
+directory, and PORTLY_STATE_DIR when set), and removes the portly block
 from ${HOSTS_DISPLAY}.
 
 Only allowlisted filenames under each state directory are deleted. Custom
@@ -2029,7 +2029,7 @@ macOS/Linux may prompt for sudo when the proxy, trust store, or ${HOSTS_DISPLAY}
 require elevated privileges. On Windows, run as Administrator if needed.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless clean")}
+  ${colors.cyan("portly clean")}
 
 ${colors.bold("Options:")}
   --help, -h             Show this help
@@ -2039,7 +2039,7 @@ ${colors.bold("Options:")}
 
   if (args.length > 1) {
     console.error(colors.red(`Error: Unknown argument "${args[1]}".`));
-    console.error(colors.cyan("  portless clean --help"));
+    console.error(colors.cyan("  portly clean --help"));
     process.exit(1);
   }
 
@@ -2104,28 +2104,28 @@ ${colors.bold("Options:")}
       console.warn(
         colors.yellow(
           `Could not remove CA from trust store: ${untrustResult.error}\n` +
-            `Try: sudo portless clean (Linux), or delete the certificate manually.`
+            `Try: sudo portly clean (Linux), or delete the certificate manually.`
         )
       );
     }
   }
 
   for (const stateDir of stateDirs) {
-    removePortlessStateFiles(stateDir);
+    removePortlyStateFiles(stateDir);
   }
-  console.log(colors.green("Removed portless state files from known state directories."));
+  console.log(colors.green("Removed portly state files from known state directories."));
 
   if (cleanHostsFile()) {
-    console.log(colors.green(`Removed portless entries from ${HOSTS_DISPLAY}.`));
+    console.log(colors.green(`Removed portly entries from ${HOSTS_DISPLAY}.`));
   } else if (!isWindows && process.getuid?.() !== 0) {
     if (!runCleanWithSudo(`Updating ${HOSTS_DISPLAY} requires elevated privileges.`)) {
-      console.error(colors.red(`Failed to update ${HOSTS_DISPLAY}. Run: sudo portless clean`));
+      console.error(colors.red(`Failed to update ${HOSTS_DISPLAY}. Run: sudo portly clean`));
       process.exit(1);
     }
   } else {
     console.warn(
       colors.yellow(
-        `Could not remove portless entries from ${HOSTS_DISPLAY}${isWindows ? " (run as Administrator)." : "."}`
+        `Could not remove portly entries from ${HOSTS_DISPLAY}${isWindows ? " (run as Administrator)." : "."}`
       )
     );
   }
@@ -2136,16 +2136,16 @@ ${colors.bold("Options:")}
 async function handlePrune(args: string[]): Promise<void> {
   if (args[1] === "--help" || args[1] === "-h") {
     console.log(`
-${colors.bold("portless prune")} - Kill orphaned dev servers left behind by crashed portless sessions.
+${colors.bold("portly prune")} - Kill orphaned dev servers left behind by crashed portly sessions.
 
-When portless is killed with SIGKILL (kill -9) or crashes, child dev servers
+When portly is killed with SIGKILL (kill -9) or crashes, child dev servers
 may survive and continue holding their ports. This command finds those orphans
 by checking routes whose owning CLI process is dead but whose port is still in
 use, then terminates them and cleans up the stale route entries.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless prune")}
-  ${colors.cyan("portless prune --force")}     Send SIGKILL instead of SIGTERM
+  ${colors.cyan("portly prune")}
+  ${colors.cyan("portly prune --force")}     Send SIGKILL instead of SIGTERM
 
 ${colors.bold("Options:")}
   --force                Send SIGKILL instead of SIGTERM
@@ -2226,18 +2226,18 @@ async function handleList(): Promise<void> {
 
 function printTunnelHelp(): void {
   console.log(`
-${colors.bold("portless tunnel")} - Manage named Cloudflare tunnels for stable public URLs.
+${colors.bold("portly tunnel")} - Manage named Cloudflare tunnels for stable public URLs.
 
 Named tunnels give an app a stable public hostname on your own domain
 (e.g. https://hooks.example.com) backed by your own Cloudflare account, so
 webhook registrations survive restarts. Use them by adding --hostname to a run:
 
-  ${colors.cyan("portless myapp --cloudflare --hostname hooks.example.com next dev")}
+  ${colors.cyan("portly myapp --cloudflare --hostname hooks.example.com next dev")}
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless tunnel login")}                 Authorize a domain (one-time, opens a browser)
-  ${colors.cyan("portless tunnel list")}                  List your Cloudflare tunnels
-  ${colors.cyan("portless tunnel delete <hostname>")}     Delete a portly-managed named tunnel
+  ${colors.cyan("portly tunnel login")}                 Authorize a domain (one-time, opens a browser)
+  ${colors.cyan("portly tunnel list")}                  List your Cloudflare tunnels
+  ${colors.cyan("portly tunnel delete <hostname>")}     Delete a portly-managed named tunnel
 
 ${colors.bold("Notes:")}
   Deleting a tunnel does not remove its DNS record; remove the CNAME from the
@@ -2261,9 +2261,7 @@ async function handleTunnel(args: string[]): Promise<void> {
       console.log(colors.blue("Opening Cloudflare to authorize a domain..."));
       loginCloudflared();
       console.log(colors.green("\nLogged in. You can now run apps with a stable hostname:"));
-      console.log(
-        colors.cyan("  portless myapp --cloudflare --hostname hooks.example.com next dev")
-      );
+      console.log(colors.cyan("  portly myapp --cloudflare --hostname hooks.example.com next dev"));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(colors.red(`Error: ${message}`));
@@ -2306,7 +2304,7 @@ async function handleTunnel(args: string[]): Promise<void> {
     const target = args[2];
     if (!target) {
       console.error(colors.red("Error: tunnel delete requires a hostname or tunnel name."));
-      console.error(colors.cyan("  portless tunnel delete hooks.example.com"));
+      console.error(colors.cyan("  portly tunnel delete hooks.example.com"));
       process.exit(1);
     }
     const tunnelName = target.startsWith("portly-") ? target : tunnelNameForHostname(target);
@@ -2341,25 +2339,25 @@ async function handleTunnel(args: string[]): Promise<void> {
 async function handleGet(args: string[]): Promise<void> {
   if (args[1] === "--help" || args[1] === "-h") {
     console.log(`
-${colors.bold("portless get")} - Print the URL for a service.
+${colors.bold("portly get")} - Print the URL for a service.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless get <name>")}
+  ${colors.cyan("portly get <name>")}
 
 Constructs the URL using the same hostname and worktree logic as
-"portless run", then prints it to stdout. Useful for wiring services
+"portly run", then prints it to stdout. Useful for wiring services
 together:
 
-  BACKEND_URL=$(portless get backend)
+  BACKEND_URL=$(portly get backend)
 
 ${colors.bold("Options:")}
   --no-worktree          Skip worktree prefix detection
   --help, -h             Show this help
 
 ${colors.bold("Examples:")}
-  portless get backend                  # -> https://backend.localhost
-  portless get backend                  # in worktree -> https://auth.backend.localhost
-  portless get backend --no-worktree    # -> https://backend.localhost (skip worktree)
+  portly get backend                  # -> https://backend.localhost
+  portly get backend                  # in worktree -> https://auth.backend.localhost
+  portly get backend --no-worktree    # -> https://backend.localhost (skip worktree)
 `);
     process.exit(0);
   }
@@ -2382,9 +2380,9 @@ ${colors.bold("Examples:")}
   if (positional.length === 0) {
     console.error(colors.red("Error: Missing service name."));
     console.error(colors.blue("Usage:"));
-    console.error(colors.cyan("  portless get <name>"));
+    console.error(colors.cyan("  portly get <name>"));
     console.error(colors.blue("Example:"));
-    console.error(colors.cyan("  portless get backend"));
+    console.error(colors.cyan("  portly get backend"));
     process.exit(1);
   }
 
@@ -2395,24 +2393,24 @@ ${colors.bold("Examples:")}
   const { port, tls, tld } = await discoverState();
   const hostname = parseHostname(effectiveName, tld);
   const url = formatUrl(hostname, port, tls);
-  // Print bare URL to stdout so it works in $(portless get <name>)
+  // Print bare URL to stdout so it works in $(portly get <name>)
   process.stdout.write(url + "\n");
 }
 
 async function handleAlias(args: string[]): Promise<void> {
   if (args[1] === "--help" || args[1] === "-h") {
     console.log(`
-${colors.bold("portless alias")} - Register a static route for services not managed by portless.
+${colors.bold("portly alias")} - Register a static route for services not managed by portly.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless alias <name> <port>")}        Register a route
-  ${colors.cyan("portless alias --remove <name>")}      Remove a route
-  ${colors.cyan("portless alias <name> <port> --force")} Override existing route
+  ${colors.cyan("portly alias <name> <port>")}        Register a route
+  ${colors.cyan("portly alias --remove <name>")}      Remove a route
+  ${colors.cyan("portly alias <name> <port> --force")} Override existing route
 
 ${colors.bold("Examples:")}
-  portless alias my-postgres 5432     # -> https://my-postgres.localhost
-  portless alias redis 6379           # -> https://redis.localhost
-  portless alias --remove my-postgres # Remove the alias
+  portly alias my-postgres 5432     # -> https://my-postgres.localhost
+  portly alias redis 6379           # -> https://redis.localhost
+  portly alias --remove my-postgres # Remove the alias
 `);
     process.exit(0);
   }
@@ -2426,7 +2424,7 @@ ${colors.bold("Examples:")}
     const aliasName = args[2];
     if (!aliasName) {
       console.error(colors.red("Error: No alias name provided."));
-      console.error(colors.cyan("  portless alias --remove <name>"));
+      console.error(colors.cyan("  portly alias --remove <name>"));
       process.exit(1);
     }
     const hostname = parseHostname(aliasName, tld);
@@ -2446,10 +2444,10 @@ ${colors.bold("Examples:")}
   if (!aliasName || !aliasPort) {
     console.error(colors.red("Error: Missing arguments."));
     console.error(colors.blue("Usage:"));
-    console.error(colors.cyan("  portless alias <name> <port>"));
-    console.error(colors.cyan("  portless alias --remove <name>"));
+    console.error(colors.cyan("  portly alias <name> <port>"));
+    console.error(colors.cyan("  portly alias --remove <name>"));
     console.error(colors.blue("Example:"));
-    console.error(colors.cyan("  portless alias my-postgres 5432"));
+    console.error(colors.cyan("  portly alias my-postgres 5432"));
     process.exit(1);
   }
 
@@ -2468,25 +2466,25 @@ ${colors.bold("Examples:")}
 async function handleHosts(args: string[]): Promise<void> {
   if (args[1] === "--help" || args[1] === "-h") {
     console.log(`
-${colors.bold("portless hosts")} - Manage ${HOSTS_DISPLAY} entries for .localhost subdomains.
+${colors.bold("portly hosts")} - Manage ${HOSTS_DISPLAY} entries for .localhost subdomains.
 
 Safari relies on the system DNS resolver, which may not handle .localhost
 subdomains. This command adds entries to ${HOSTS_DISPLAY} as a workaround.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless hosts sync")}    Add current routes to ${HOSTS_DISPLAY}
-  ${colors.cyan("portless hosts clean")}   Remove portless entries from ${HOSTS_DISPLAY}
+  ${colors.cyan("portly hosts sync")}    Add current routes to ${HOSTS_DISPLAY}
+  ${colors.cyan("portly hosts clean")}   Remove portly entries from ${HOSTS_DISPLAY}
 
 ${colors.bold("Auto-sync:")}
   The proxy updates ${HOSTS_DISPLAY} for route hostnames by default. Disable with
-  PORTLESS_SYNC_HOSTS=0.
+  PORTLY_SYNC_HOSTS=0.
 `);
     process.exit(0);
   }
 
   if (args[1] === "clean") {
     if (cleanHostsFile()) {
-      console.log(colors.green(`Removed portless entries from ${HOSTS_DISPLAY}.`));
+      console.log(colors.green(`Removed portly entries from ${HOSTS_DISPLAY}.`));
       return;
     }
 
@@ -2498,7 +2496,7 @@ ${colors.bold("Auto-sync:")}
       );
       const result = spawnSync(
         "sudo",
-        ["env", ...collectPortlessEnvArgs(), process.execPath, getEntryScript(), "hosts", "clean"],
+        ["env", ...collectPortlyEnvArgs(), process.execPath, getEntryScript(), "hosts", "clean"],
         {
           stdio: "inherit",
           timeout: SUDO_SPAWN_TIMEOUT_MS,
@@ -2516,10 +2514,10 @@ ${colors.bold("Auto-sync:")}
 
   if (!args[1]) {
     console.log(`
-${colors.bold("Usage: portless hosts <command>")}
+${colors.bold("Usage: portly hosts <command>")}
 
-  ${colors.cyan("portless hosts sync")}    Add current routes to ${HOSTS_DISPLAY}
-  ${colors.cyan("portless hosts clean")}   Remove portless entries from ${HOSTS_DISPLAY}
+  ${colors.cyan("portly hosts sync")}    Add current routes to ${HOSTS_DISPLAY}
+  ${colors.cyan("portly hosts clean")}   Remove portly entries from ${HOSTS_DISPLAY}
 `);
     process.exit(0);
   }
@@ -2527,8 +2525,8 @@ ${colors.bold("Usage: portless hosts <command>")}
   if (args[1] !== "sync") {
     console.error(colors.red(`Error: Unknown hosts subcommand "${args[1]}".`));
     console.error(colors.blue("Usage:"));
-    console.error(colors.cyan(`  portless hosts sync    # Add routes to ${HOSTS_DISPLAY}`));
-    console.error(colors.cyan("  portless hosts clean   # Remove portless entries"));
+    console.error(colors.cyan(`  portly hosts sync    # Add routes to ${HOSTS_DISPLAY}`));
+    console.error(colors.cyan("  portly hosts clean   # Remove portly entries"));
     process.exit(1);
   }
 
@@ -2557,7 +2555,7 @@ ${colors.bold("Usage: portless hosts <command>")}
     );
     const result = spawnSync(
       "sudo",
-      ["env", ...collectPortlessEnvArgs(), process.execPath, getEntryScript(), "hosts", "sync"],
+      ["env", ...collectPortlyEnvArgs(), process.execPath, getEntryScript(), "hosts", "sync"],
       {
         stdio: "inherit",
         timeout: SUDO_SPAWN_TIMEOUT_MS,
@@ -2605,17 +2603,17 @@ async function handleProxy(args: string[]): Promise<void> {
   const isProxyHelp = args[1] === "--help" || args[1] === "-h";
   if (isProxyHelp || args[1] !== "start") {
     console.log(`
-${colors.bold("portless proxy")} - Manage the portless proxy server.
+${colors.bold("portly proxy")} - Manage the portly proxy server.
 
 ${colors.bold("Usage:")}
-  ${colors.cyan("portless proxy start")}                Start the HTTPS proxy on port 443 (daemon)
-  ${colors.cyan("portless proxy start --no-tls")}       Start without HTTPS (port 80)
-  ${colors.cyan("portless proxy start --lan")}          Enable LAN mode (mDNS, .local TLD)
-  ${colors.cyan("portless proxy start --foreground")}   Start in foreground (for debugging)
-  ${colors.cyan("portless proxy start -p 1355")}        Start on a custom port (no sudo)
-  ${colors.cyan("portless proxy start --tld test")}     Use .test instead of .localhost
-  ${colors.cyan("portless proxy start --wildcard")}     Allow unregistered subdomains to fall back to parent
-  ${colors.cyan("portless proxy stop")}                 Stop the proxy
+  ${colors.cyan("portly proxy start")}                Start the HTTPS proxy on port 443 (daemon)
+  ${colors.cyan("portly proxy start --no-tls")}       Start without HTTPS (port 80)
+  ${colors.cyan("portly proxy start --lan")}          Enable LAN mode (mDNS, .local TLD)
+  ${colors.cyan("portly proxy start --foreground")}   Start in foreground (for debugging)
+  ${colors.cyan("portly proxy start -p 1355")}        Start on a custom port (no sudo)
+  ${colors.cyan("portly proxy start --tld test")}     Use .test instead of .localhost
+  ${colors.cyan("portly proxy start --wildcard")}     Allow unregistered subdomains to fall back to parent
+  ${colors.cyan("portly proxy stop")}                 Stop the proxy
 
 ${colors.bold("LAN mode (--lan):")}
   Makes services accessible from other devices on the same WiFi network
@@ -2623,7 +2621,7 @@ ${colors.bold("LAN mode (--lan):")}
   Auto-detects your LAN IP and follows changes automatically, or use
   --ip to pin one.
   Stopped LAN proxies keep LAN mode for the next start via proxy.lan.
-  Use PORTLESS_LAN=0 for one start to switch back to .localhost mode.
+  Use PORTLY_LAN=0 for one start to switch back to .localhost mode.
 `);
     process.exit(isProxyHelp || !args[1] ? 0 : 1);
   }
@@ -2631,7 +2629,7 @@ ${colors.bold("LAN mode (--lan):")}
   const isForeground = args.includes("--foreground");
   const skipTrust = args.includes("--skip-trust");
 
-  // HTTPS is on by default. Disable with --no-tls or PORTLESS_HTTPS=0.
+  // HTTPS is on by default. Disable with --no-tls or PORTLY_HTTPS=0.
   const hasHttpsFlag = args.includes("--https");
   const hasNoTls = args.includes("--no-tls") || isHttpsEnvDisabled();
   const wantHttps = !hasNoTls;
@@ -2674,7 +2672,7 @@ ${colors.bold("LAN mode (--lan):")}
     if (!portValue || portValue.startsWith("-")) {
       console.error(colors.red("Error: --port / -p requires a port number."));
       console.error(colors.blue("Usage:"));
-      console.error(colors.cyan("  portless proxy start -p 8080"));
+      console.error(colors.cyan("  portly proxy start -p 8080"));
       process.exit(1);
     }
     proxyPort = parseInt(portValue, 10);
@@ -2717,12 +2715,12 @@ ${colors.bold("LAN mode (--lan):")}
       hasNoTls ||
       customCertPath !== null ||
       customKeyPath !== null ||
-      process.env.PORTLESS_HTTPS !== undefined,
+      process.env.PORTLY_HTTPS !== undefined,
     customCert: customCertPath !== null || customKeyPath !== null,
-    lanMode: process.env.PORTLESS_LAN !== undefined,
-    lanIp: process.env.PORTLESS_LAN_IP !== undefined,
-    tld: tldIdx !== -1 || process.env.PORTLESS_TLD !== undefined,
-    useWildcard: args.includes("--wildcard") || process.env.PORTLESS_WILDCARD !== undefined,
+    lanMode: process.env.PORTLY_LAN !== undefined,
+    lanIp: process.env.PORTLY_LAN_IP !== undefined,
+    tld: tldIdx !== -1 || process.env.PORTLY_TLD !== undefined,
+    useWildcard: args.includes("--wildcard") || process.env.PORTLY_WILDCARD !== undefined,
   };
 
   // Resolve state directory based on the port
@@ -2734,7 +2732,7 @@ ${colors.bold("LAN mode (--lan):")}
     persistedLanMode = currentState.lanMode;
     if (
       (await isProxyRunning(currentState.port)) ||
-      (!!process.env.PORTLESS_STATE_DIR && (await isPortListening(currentState.port)))
+      (!!process.env.PORTLY_STATE_DIR && (await isPortListening(currentState.port)))
     ) {
       runningPort = currentState.port;
       proxyPort = currentState.port;
@@ -2749,7 +2747,7 @@ ${colors.bold("LAN mode (--lan):")}
     customCertPath,
     customKeyPath,
     lanMode: isLanEnvEnabled(),
-    lanIp: process.env.PORTLESS_LAN_IP || null,
+    lanIp: process.env.PORTLY_LAN_IP || null,
     tld,
     useWildcard,
   });
@@ -2783,7 +2781,7 @@ ${colors.bold("LAN mode (--lan):")}
   }
 
   const syncDisabled =
-    process.env.PORTLESS_SYNC_HOSTS === "0" || process.env.PORTLESS_SYNC_HOSTS === "false";
+    process.env.PORTLY_SYNC_HOSTS === "0" || process.env.PORTLY_SYNC_HOSTS === "false";
   if (tld !== DEFAULT_TLD && !lanMode && syncDisabled) {
     console.warn(
       colors.yellow(
@@ -2791,7 +2789,7 @@ ${colors.bold("LAN mode (--lan):")}
       )
     );
     console.warn(colors.yellow("Hosts sync is disabled. To add entries manually, run:"));
-    console.warn(colors.cyan("  portless hosts sync"));
+    console.warn(colors.cyan("  portly hosts sync"));
   }
 
   let store = new RouteStore(stateDir, {
@@ -2813,7 +2811,7 @@ ${colors.bold("LAN mode (--lan):")}
     const portFlag = proxyPort !== getDefaultPort(useHttps) ? ` -p ${proxyPort}` : "";
     console.log(colors.yellow(`Proxy is already running on port ${proxyPort}.`));
     console.log(
-      colors.blue(`To restart: portless proxy stop${portFlag} && portless proxy start${portFlag}`)
+      colors.blue(`To restart: portly proxy stop${portFlag} && portly proxy start${portFlag}`)
     );
     return;
   }
@@ -2845,7 +2843,7 @@ ${colors.bold("LAN mode (--lan):")}
     if (!lanIp) {
       console.error(colors.red("Error: Could not detect LAN IP. Are you connected to a network?"));
       console.error(colors.blue("Specify manually:"));
-      console.error(colors.cyan("  portless proxy start --lan --ip 192.168.1.42"));
+      console.error(colors.cyan("  portly proxy start --lan --ip 192.168.1.42"));
       process.exit(1);
     }
   } else {
@@ -2895,7 +2893,7 @@ ${colors.bold("LAN mode (--lan):")}
     if (!hasExplicitPort) {
       console.log(colors.gray(`(To skip sudo, use an unprivileged port: ${fallbackCommand})`));
     }
-    const result = spawnSync("sudo", ["env", ...collectPortlessEnvArgs(), ...startArgs], {
+    const result = spawnSync("sudo", ["env", ...collectPortlyEnvArgs(), ...startArgs], {
       stdio: "inherit",
       timeout: SUDO_SPAWN_TIMEOUT_MS,
     });
@@ -2945,7 +2943,7 @@ ${colors.bold("LAN mode (--lan):")}
       console.error(
         colors.red(`Error: Port ${proxyPort} requires elevated privileges and sudo failed.`)
       );
-      console.error(colors.blue("Try again (portless will prompt for sudo):"));
+      console.error(colors.blue("Try again (portly will prompt for sudo):"));
       console.error(colors.cyan(`  ${currentCommand}`));
       process.exit(1);
     }
@@ -2993,7 +2991,7 @@ ${colors.bold("LAN mode (--lan):")}
         const trustResult = trustCA(stateDir);
         if (trustResult.trusted) {
           console.log(
-            colors.green("CA added to system trust store. Browsers will trust portless certs.")
+            colors.green("CA added to system trust store. Browsers will trust portly certs.")
           );
         } else {
           console.warn(colors.yellow("Could not add CA to system trust store."));
@@ -3003,7 +3001,7 @@ ${colors.bold("LAN mode (--lan):")}
           console.warn(
             colors.yellow("Browsers will show certificate warnings. To fix this later, run:")
           );
-          console.warn(colors.cyan("  portless trust"));
+          console.warn(colors.cyan("  portly trust"));
         }
       }
 
@@ -3021,7 +3019,7 @@ ${colors.bold("LAN mode (--lan):")}
 
   // Foreground mode: run the proxy directly in this process
   if (isForeground) {
-    console.log(chalk.blue.bold("\nportless proxy\n"));
+    console.log(chalk.blue.bold("\nportly proxy\n"));
     startProxyServer(store, proxyPort, tld, tlsOptions, lanIp, desiredWildcard ? false : undefined);
     return;
   }
@@ -3073,7 +3071,7 @@ ${colors.bold("LAN mode (--lan):")}
   if (!(await waitForProxy(proxyPort, undefined, undefined, useHttps))) {
     console.error(colors.red("Proxy failed to start (timed out waiting for it to listen)."));
     console.error(colors.blue("Try starting the proxy in the foreground to see the error:"));
-    console.error(colors.cyan("  portless proxy start --foreground"));
+    console.error(colors.cyan("  portly proxy start --foreground"));
     if (fs.existsSync(logPath)) {
       console.error(colors.gray(`Logs: ${logPath}`));
     }
@@ -3089,7 +3087,7 @@ ${colors.bold("LAN mode (--lan):")}
 }
 
 /**
- * Load the effective AppConfig for the current directory from portless.json.
+ * Load the effective AppConfig for the current directory from portly.json.
  * Handles both single-app (top-level fields) and monorepo (apps map) configs.
  */
 function loadAppConfig(cwd: string = process.cwd()): AppConfig | null {
@@ -3107,26 +3105,26 @@ function loadAppConfig(cwd: string = process.cwd()): AppConfig | null {
 }
 
 /**
- * Apply a portless.json `cloudflare.hostname` as the named-tunnel hostname,
+ * Apply a portly.json `cloudflare.hostname` as the named-tunnel hostname,
  * unless an explicit --hostname flag / env var already set one (those win).
  * Setting a hostname implies the Cloudflare provider.
  */
 function applyCloudflareHostnameConfig(appConfig: AppConfig | null): void {
   const hostname = appConfig?.cloudflare?.hostname?.trim();
-  if (hostname && !process.env.PORTLESS_CLOUDFLARE_HOSTNAME) {
-    process.env.PORTLESS_CLOUDFLARE_HOSTNAME = hostname;
-    process.env.PORTLESS_CLOUDFLARE = "1";
+  if (hostname && !process.env.PORTLY_CLOUDFLARE_HOSTNAME) {
+    process.env.PORTLY_CLOUDFLARE_HOSTNAME = hostname;
+    process.env.PORTLY_CLOUDFLARE = "1";
   }
 }
 
 /**
- * Zero-arg dispatch: `portless` with no arguments.
+ * Zero-arg dispatch: `portly` with no arguments.
  * Returns true if handled, false to fall through to help text.
  *
  * Activates when:
  * - At a workspace root (pnpm, npm, yarn, or bun) -> multi-app mode
  * - In any directory with a package.json that has the target script -> single-app mode
- * Config (portless.json / package.json "portless" key) is loaded for overrides
+ * Config (portly.json / package.json "portly" key) is loaded for overrides
  * but is not required.
  */
 async function handleDefaultMode(
@@ -3191,7 +3189,7 @@ async function handleDefaultSingle(
       .split(".")
       .map((label) => truncateLabel(label))
       .join(".");
-    nameSource = "portless.json";
+    nameSource = "portly.json";
   } else {
     const inferred = inferProjectName(cwd);
     baseName = inferred.name;
@@ -3227,7 +3225,7 @@ async function handleDefaultSingle(
  */
 interface MultiAppEntry {
   pkg: WorkspacePackage;
-  /** Portless hostname (e.g. "web.json-render") */
+  /** Portly hostname (e.g. "web.json-render") */
   name: string;
   /** Human-readable package label for display (e.g. "web") */
   label: string;
@@ -3289,7 +3287,7 @@ async function spawnProxiedApp(
   displayUrl: string;
   route: { store: RouteStore; hostname: string } | null;
 }> {
-  const usesPortless = app.commandArgs[0] === "portless";
+  const usesPortly = app.commandArgs[0] === "portly";
 
   const pkgEnv: Record<string, string | undefined> = { ...process.env };
   pkgEnv.PATH = augmentedPath(pkgEnv, app.pkg.dir);
@@ -3299,9 +3297,9 @@ async function spawnProxiedApp(
   let hostname: string | null = null;
   let displayUrl: string;
 
-  if (usesPortless) {
+  if (usesPortly) {
     env = pkgEnv;
-    displayUrl = "(managed by portless)";
+    displayUrl = "(managed by portly)";
   } else {
     store = new RouteStore(stateDir, {
       onWarning: (msg) => console.warn(colors.yellow(`[${app.name}] ${msg}`)),
@@ -3321,7 +3319,7 @@ async function spawnProxiedApp(
       ...pkgEnv,
       PORT: String(appPort),
       HOST: "127.0.0.1",
-      PORTLESS_URL: url,
+      PORTLY_URL: url,
     };
 
     if (tls) {
@@ -3438,7 +3436,7 @@ async function handleDefaultMulti(
     const rootOverride = loaded ? resolveAppConfig(loaded.config, loaded.configDir, pkg.dir) : null;
     let pkgConfig: AppConfig | null;
     try {
-      pkgConfig = loadPackagePortlessConfig(pkg.dir);
+      pkgConfig = loadPackagePortlyConfig(pkg.dir);
     } catch (err) {
       if (err instanceof ConfigValidationError) {
         console.error(colors.red(`Error: ${err.message}`));
@@ -3447,7 +3445,7 @@ async function handleDefaultMulti(
       throw err;
     }
 
-    // Merge (closest wins): package.json "portless" > portless.json app entry > defaults
+    // Merge (closest wins): package.json "portly" > portly.json app entry > defaults
     const appOverride: AppConfig = {
       ...Object.fromEntries(Object.entries(rootOverride ?? {}).filter(([, v]) => v !== undefined)),
       ...Object.fromEntries(Object.entries(pkgConfig ?? {}).filter(([, v]) => v !== undefined)),
@@ -3497,7 +3495,7 @@ async function handleDefaultMulti(
   const proxiedApps = apps.filter((a) => a.proxied);
   const taskApps = apps.filter((a) => !a.proxied);
 
-  console.log(chalk.blue.bold(`\nportless\n`));
+  console.log(chalk.blue.bold(`\nportly\n`));
 
   let { dir, port, tls, tld } = await discoverState();
 
@@ -3554,9 +3552,9 @@ async function runWithTurbo(
   const appUrls: { label: string; url: string }[] = [];
 
   for (const app of proxiedApps) {
-    const usesPortless = app.commandArgs[0] === "portless";
-    if (usesPortless) {
-      appUrls.push({ label: app.label, url: "(managed by portless)" });
+    const usesPortly = app.commandArgs[0] === "portly";
+    if (usesPortly) {
+      appUrls.push({ label: app.label, url: "(managed by portly)" });
       continue;
     }
 
@@ -3574,7 +3572,7 @@ async function runWithTurbo(
     const entry: ManifestEntry = {
       PORT: String(appPort),
       HOST: "127.0.0.1",
-      PORTLESS_URL: url,
+      PORTLY_URL: url,
     };
     if (tls) {
       const caPath = path.join(stateDir, "ca.pem");
@@ -3767,9 +3765,9 @@ async function handleRunMode(args: string[], globalScript?: string): Promise<voi
   if (parsed.commandArgs.length === 0) {
     console.error(colors.red("Error: No command provided."));
     console.error(colors.blue("Usage:"));
-    console.error(colors.cyan("  portless run <command...>"));
+    console.error(colors.cyan("  portly run <command...>"));
     console.error(colors.blue("Example:"));
-    console.error(colors.cyan("  portless run next dev"));
+    console.error(colors.cyan("  portly run next dev"));
     process.exit(1);
   }
 
@@ -3789,7 +3787,7 @@ async function handleRunMode(args: string[], globalScript?: string): Promise<voi
       .split(".")
       .map((label) => truncateLabel(label))
       .join(".");
-    nameSource = "portless.json";
+    nameSource = "portly.json";
   } else {
     const inferred = inferProjectName();
     baseName = inferred.name;
@@ -3829,9 +3827,9 @@ async function handleNamedMode(args: string[]): Promise<void> {
   if (parsed.commandArgs.length === 0) {
     console.error(colors.red("Error: No command provided."));
     console.error(colors.blue("Usage:"));
-    console.error(colors.cyan("  portless <name> <command...>"));
+    console.error(colors.cyan("  portly <name> <command...>"));
     console.error(colors.blue("Example:"));
-    console.error(colors.cyan("  portless myapp next dev"));
+    console.error(colors.cyan("  portly myapp next dev"));
     process.exit(1);
   }
 
@@ -3887,24 +3885,24 @@ async function main() {
 
   // Block one-off npx / pnpm dlx downloads. Running "sudo npx" is unsafe
   // because it performs package resolution and downloads as root. When
-  // portless is installed as a project dependency the env vars still fire,
+  // portly is installed as a project dependency the env vars still fire,
   // so skip the block if we can find a local installation.
   const isNpx = process.env.npm_command === "exec" && !process.env.npm_lifecycle_event;
   const isPnpmDlx = !!process.env.PNPM_SCRIPT_SRC_DIR && !process.env.npm_lifecycle_event;
   if ((isNpx || isPnpmDlx) && !isLocallyInstalled()) {
-    console.error(colors.red("Error: portless should not be run via npx or pnpm dlx."));
+    console.error(colors.red("Error: portly should not be run via npx or pnpm dlx."));
     console.error(colors.blue("Install globally or as a project dependency:"));
-    console.error(colors.cyan("  npm install -g portless"));
-    console.error(colors.cyan("  npm install -D portless"));
+    console.error(colors.cyan("  npm install -g portly"));
+    console.error(colors.cyan("  npm install -D portly"));
     process.exit(1);
   }
 
   // --lan / --ip / --lan-ip-auto: global flags that enable LAN mode.
   // Strip from args and convert to env vars so all downstream code paths
   // see them regardless of where the user placed them (e.g.
-  // `portless --lan run ...`, `portless proxy start --lan`).
+  // `portly --lan run ...`, `portly proxy start --lan`).
   // Only scan before the `--` separator to avoid consuming flags meant
-  // for the child command (e.g. `portless run tool -- --ip 0.0.0.0`).
+  // for the child command (e.g. `portly run tool -- --ip 0.0.0.0`).
   //
   // Helper: find a flag before `--`, strip it (and optionally its value)
   // from args, and return the value (or true for boolean flags).
@@ -3924,17 +3922,17 @@ async function main() {
   };
 
   if (stripGlobalFlag("--lan", false)) {
-    process.env.PORTLESS_LAN = "1";
+    process.env.PORTLY_LAN = "1";
   }
 
   const ipResult = stripGlobalFlag("--ip", true);
   if (ipResult === false) {
     console.error(chalk.red("Error: --ip requires an IP address."));
-    console.error(chalk.cyan("  portless --lan --ip 192.168.1.42 run <command>"));
+    console.error(chalk.cyan("  portly --lan --ip 192.168.1.42 run <command>"));
     process.exit(1);
   } else if (typeof ipResult === "string") {
-    process.env.PORTLESS_LAN_IP = ipResult;
-    process.env.PORTLESS_LAN = "1";
+    process.env.PORTLY_LAN_IP = ipResult;
+    process.env.PORTLY_LAN = "1";
   }
 
   const autoIpResult = stripGlobalFlag(INTERNAL_LAN_IP_FLAG, true);
@@ -3943,21 +3941,21 @@ async function main() {
     process.exit(1);
   } else if (typeof autoIpResult === "string") {
     process.env[INTERNAL_LAN_IP_ENV] = autoIpResult;
-    process.env.PORTLESS_LAN = "1";
+    process.env.PORTLY_LAN = "1";
   }
 
   if (stripGlobalFlag("--tailscale", false)) {
-    process.env.PORTLESS_TAILSCALE = "1";
+    process.env.PORTLY_TAILSCALE = "1";
   }
   if (stripGlobalFlag("--funnel", false)) {
-    process.env.PORTLESS_FUNNEL = "1";
-    process.env.PORTLESS_TAILSCALE = "1";
+    process.env.PORTLY_FUNNEL = "1";
+    process.env.PORTLY_TAILSCALE = "1";
   }
   if (stripGlobalFlag("--ngrok", false)) {
-    process.env.PORTLESS_NGROK = "1";
+    process.env.PORTLY_NGROK = "1";
   }
   if (stripGlobalFlag("--cloudflare", false)) {
-    process.env.PORTLESS_CLOUDFLARE = "1";
+    process.env.PORTLY_CLOUDFLARE = "1";
   }
 
   // --hostname flag: the stable public hostname for a named Cloudflare tunnel.
@@ -3965,19 +3963,19 @@ async function main() {
   const hostnameResult = stripGlobalFlag("--hostname", true);
   if (hostnameResult === false) {
     console.error(colors.red("Error: --hostname requires a fully-qualified domain name."));
-    console.error(colors.cyan("  portless myapp --cloudflare --hostname app.example.com next dev"));
+    console.error(colors.cyan("  portly myapp --cloudflare --hostname app.example.com next dev"));
     process.exit(1);
   } else if (typeof hostnameResult === "string") {
-    process.env.PORTLESS_CLOUDFLARE_HOSTNAME = hostnameResult;
+    process.env.PORTLY_CLOUDFLARE_HOSTNAME = hostnameResult;
     // A hostname only makes sense with the Cloudflare provider; turn it on.
-    process.env.PORTLESS_CLOUDFLARE = "1";
+    process.env.PORTLY_CLOUDFLARE = "1";
   }
 
   // --script flag: override the default "dev" script for zero-arg mode.
   const scriptResult = stripGlobalFlag("--script", true);
   if (scriptResult === false) {
     console.error(colors.red("Error: --script requires a script name."));
-    console.error(colors.cyan("  portless --script start"));
+    console.error(colors.cyan("  portly --script start"));
     process.exit(1);
   }
   const globalScript = typeof scriptResult === "string" ? scriptResult : undefined;
@@ -3989,14 +3987,12 @@ async function main() {
     args.shift();
     if (!args[0]) {
       console.error(colors.red("Error: --name requires an app name."));
-      console.error(colors.cyan("  portless --name <name> <command...>"));
+      console.error(colors.cyan("  portly --name <name> <command...>"));
       process.exit(1);
     }
-    const skipPortless =
-      process.env.PORTLESS === "0" ||
-      process.env.PORTLESS === "false" ||
-      process.env.PORTLESS === "skip";
-    if (skipPortless) {
+    const skipPortly =
+      process.env.PORTLY === "0" || process.env.PORTLY === "false" || process.env.PORTLY === "skip";
+    if (skipPortly) {
       const { commandArgs } = parseAppArgs(args);
       if (commandArgs.length === 0) {
         console.error(colors.red("Error: No command provided."));
@@ -4015,12 +4011,10 @@ async function main() {
     args.shift();
   }
 
-  const skipPortless =
-    process.env.PORTLESS === "0" ||
-    process.env.PORTLESS === "false" ||
-    process.env.PORTLESS === "skip";
+  const skipPortly =
+    process.env.PORTLY === "0" || process.env.PORTLY === "false" || process.env.PORTLY === "skip";
   if (
-    skipPortless &&
+    skipPortly &&
     (isRunCommand ||
       args.length === 0 ||
       (args.length >= 2 &&
@@ -4047,7 +4041,7 @@ async function main() {
 
   // Global dispatch: help, version, trust, clean, prune, list, alias, hosts, proxy, service
   // When `run` is used, skip these so args like "list" or "--help" are treated
-  // as child-command tokens, not portless subcommands.
+  // as child-command tokens, not portly subcommands.
   if (!isRunCommand) {
     if (args[0] === "--help" || args[0] === "-h") {
       printHelp();
@@ -4106,7 +4100,7 @@ async function main() {
     }
   }
 
-  // Run app (either `portless run <cmd>` or `portless <name> <cmd>`)
+  // Run app (either `portly run <cmd>` or `portly <name> <cmd>`)
   if (isRunCommand) {
     await handleRunMode(args, globalScript);
   } else {

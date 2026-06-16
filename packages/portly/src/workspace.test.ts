@@ -11,7 +11,7 @@ import {
 } from "./workspace.js";
 
 function createTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "portless-ws-test-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "portly-ws-test-"));
 }
 
 function cleanupDir(dir: string): void {

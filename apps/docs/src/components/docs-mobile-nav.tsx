@@ -7,7 +7,7 @@ import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/s
 
 const nav = [
   { href: "/", label: "Getting Started" },
-  { href: "/why", label: "Why Portless" },
+  { href: "/why", label: "Why Portly" },
   { href: "/commands", label: "Commands" },
   { href: "/https", label: "HTTPS" },
   { href: "/configuration", label: "Configuration" },

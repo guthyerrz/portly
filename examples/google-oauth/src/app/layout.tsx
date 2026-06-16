@@ -6,8 +6,8 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "Google OAuth + Portless",
-  description: "Testing Google OAuth with portless custom TLDs",
+  title: "Google OAuth + Portly",
+  description: "Testing Google OAuth with portly custom TLDs",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

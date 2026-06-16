@@ -82,7 +82,7 @@ function formatOutputError(output: string): Error {
     lower.includes("not logged in")
   ) {
     return new Error(
-      "ngrok could not start because authentication is not configured. Run `ngrok config add-authtoken <token>`, then run portless again."
+      "ngrok could not start because authentication is not configured. Run `ngrok config add-authtoken <token>`, then run portly again."
     );
   }
   return new Error(

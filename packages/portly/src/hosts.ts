@@ -7,8 +7,8 @@ const isWindows = process.platform === "win32";
 const HOSTS_PATH = isWindows
   ? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "drivers", "etc", "hosts")
   : "/etc/hosts";
-const MARKER_START = "# portless-start";
-const MARKER_END = "# portless-end";
+const MARKER_START = "# portly-start";
+const MARKER_END = "# portly-end";
 
 /**
  * Read the current /etc/hosts file content.
@@ -23,7 +23,7 @@ function readHostsFile(): string {
 }
 
 /**
- * Extract the portless-managed block from /etc/hosts content.
+ * Extract the portly-managed block from /etc/hosts content.
  * Returns the lines between the markers (exclusive), or an empty array
  * if no managed block exists.
  */
@@ -39,7 +39,7 @@ export function extractManagedBlock(content: string): string[] {
 }
 
 /**
- * Remove the portless-managed block from /etc/hosts content and return
+ * Remove the portly-managed block from /etc/hosts content and return
  * the cleaned content with trailing newlines normalized.
  */
 export function removeBlock(content: string): string {
@@ -52,7 +52,7 @@ export function removeBlock(content: string): string {
 }
 
 /**
- * Build a portless-managed block for the given hostnames.
+ * Build a portly-managed block for the given hostnames.
  */
 export function buildBlock(hostnames: string[]): string {
   if (hostnames.length === 0) return "";
@@ -62,7 +62,7 @@ export function buildBlock(hostnames: string[]): string {
 
 /**
  * Whether the proxy should write route hostnames to the hosts file.
- * Disabled only when `PORTLESS_SYNC_HOSTS` is `0` or `false` (opt-out).
+ * Disabled only when `PORTLY_SYNC_HOSTS` is `0` or `false` (opt-out).
  */
 export function shouldAutoSyncHosts(syncVal: string | undefined): boolean {
   return syncVal !== "0" && syncVal !== "false";
@@ -70,7 +70,7 @@ export function shouldAutoSyncHosts(syncVal: string | undefined): boolean {
 
 /**
  * Sync /etc/hosts to include entries for all given hostnames.
- * Replaces any existing portless-managed block. Requires root access.
+ * Replaces any existing portly-managed block. Requires root access.
  * Returns true on success, false on failure.
  */
 export function syncHostsFile(hostnames: string[]): boolean {
@@ -91,7 +91,7 @@ export function syncHostsFile(hostnames: string[]): boolean {
 }
 
 /**
- * Remove the portless-managed block from /etc/hosts.
+ * Remove the portly-managed block from /etc/hosts.
  * Returns true on success, false on failure.
  */
 export function cleanHostsFile(): boolean {
@@ -106,7 +106,7 @@ export function cleanHostsFile(): boolean {
 }
 
 /**
- * Return the current portless-managed hostnames from /etc/hosts.
+ * Return the current portly-managed hostnames from /etc/hosts.
  */
 export function getManagedHostnames(): string[] {
   const content = readHostsFile();

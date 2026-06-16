@@ -5,8 +5,8 @@ import type { ProxyServerOptions } from "./types.js";
 import { escapeHtml, formatUrl } from "./utils.js";
 import { ARROW_SVG, renderPage } from "./pages.js";
 
-/** Response header used to identify a portless proxy (for health checks). */
-export const PORTLESS_HEADER = "X-Portless";
+/** Response header used to identify a portly proxy (for health checks). */
+export const PORTLY_HEADER = "X-Portly";
 
 /**
  * HTTP/1.1 hop-by-hop headers that are forbidden in HTTP/2 responses.
@@ -63,15 +63,15 @@ function buildForwardedHeaders(req: http.IncomingMessage, tls: boolean): Record<
 
 /**
  * Request header tracking how many times a request has passed through a
- * portless proxy. Used to detect forwarding loops (e.g. a frontend dev
- * server proxying back through portless without rewriting the Host header).
+ * portly proxy. Used to detect forwarding loops (e.g. a frontend dev
+ * server proxying back through portly without rewriting the Host header).
  */
-const PORTLESS_HOPS_HEADER = "x-portless-hops";
+const PORTLY_HOPS_HEADER = "x-portly-hops";
 
 /**
- * Maximum number of times a request may pass through the portless proxy
+ * Maximum number of times a request may pass through the portly proxy
  * before it is rejected as a loop. Two hops is normal when a frontend
- * proxies API calls to a separate portless-managed backend; five gives
+ * proxies API calls to a separate portly-managed backend; five gives
  * comfortable headroom for multi-tier setups while catching loops quickly.
  */
 const MAX_PROXY_HOPS = 5;
@@ -122,7 +122,7 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
 
   const handleRequest = (req: http.IncomingMessage, res: http.ServerResponse) => {
     const reqTls = isEncrypted(req);
-    res.setHeader(PORTLESS_HEADER, "1");
+    res.setHeader(PORTLY_HEADER, "1");
 
     const routes = getRoutes();
     const host = getRequestHost(req).split(":")[0];
@@ -133,11 +133,11 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
       return;
     }
 
-    const hops = parseInt(req.headers[PORTLESS_HOPS_HEADER] as string, 10) || 0;
+    const hops = parseInt(req.headers[PORTLY_HOPS_HEADER] as string, 10) || 0;
     if (hops >= MAX_PROXY_HOPS) {
       onError(
-        `Loop detected for ${host}: request has passed through portless ${hops} times. ` +
-          `This usually means a backend is proxying back through portless without rewriting ` +
+        `Loop detected for ${host}: request has passed through portly ${hops} times. ` +
+          `This usually means a backend is proxying back through portly without rewriting ` +
           `the Host header. If you use Vite/webpack proxy, set changeOrigin: true.`
       );
       res.writeHead(508, { "Content-Type": "text/html" });
@@ -145,7 +145,7 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
         renderPage(
           508,
           "Loop Detected",
-          `<div class="content"><p class="desc">This request has passed through portless ${hops} times. This usually means a dev server (Vite, webpack, etc.) is proxying requests back through portless without rewriting the Host header.</p><div class="section"><p class="label">Fix: add changeOrigin to your proxy config</p><pre class="terminal">proxy: {
+          `<div class="content"><p class="desc">This request has passed through portly ${hops} times. This usually means a dev server (Vite, webpack, etc.) is proxying requests back through portly without rewriting the Host header.</p><div class="section"><p class="label">Fix: add changeOrigin to your proxy config</p><pre class="terminal">proxy: {
   "/api": {
     target: "${reqTls ? "https" : "http"}://&lt;backend&gt;${escapeHtml(tldSuffix)}${reqTls ? "" : ":&lt;port&gt;"}",
     changeOrigin: true,
@@ -171,7 +171,7 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
         renderPage(
           404,
           "Not Found",
-          `<div class="content"><p class="desc">No app registered for <strong>${safeHost}</strong></p>${routesList}<div class="section"><div class="terminal"><span class="prompt">$ </span>portless ${safeSuggestion} your-command</div></div></div>`
+          `<div class="content"><p class="desc">No app registered for <strong>${safeHost}</strong></p>${routesList}<div class="section"><div class="terminal"><span class="prompt">$ </span>portly ${safeSuggestion} your-command</div></div></div>`
         )
       );
       return;
@@ -182,7 +182,7 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
     for (const [key, value] of Object.entries(forwardedHeaders)) {
       proxyReqHeaders[key] = value;
     }
-    proxyReqHeaders[PORTLESS_HOPS_HEADER] = String(hops + 1);
+    proxyReqHeaders[PORTLY_HOPS_HEADER] = String(hops + 1);
     // Remove HTTP/2 pseudo-headers before forwarding to HTTP/1.1 backend
     for (const key of Object.keys(proxyReqHeaders)) {
       if (key.startsWith(":")) {
@@ -265,18 +265,18 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
   const handleUpgrade = (req: http.IncomingMessage, socket: net.Socket, head: Buffer) => {
     socket.on("error", () => socket.destroy());
 
-    const hops = parseInt(req.headers[PORTLESS_HOPS_HEADER] as string, 10) || 0;
+    const hops = parseInt(req.headers[PORTLY_HOPS_HEADER] as string, 10) || 0;
     if (hops >= MAX_PROXY_HOPS) {
       const host = getRequestHost(req).split(":")[0];
       onError(
-        `WebSocket loop detected for ${host}: request has passed through portless ${hops} times. ` +
+        `WebSocket loop detected for ${host}: request has passed through portly ${hops} times. ` +
           `Set changeOrigin: true in your proxy config.`
       );
       socket.end(
         "HTTP/1.1 508 Loop Detected\r\n" +
           "Content-Type: text/plain\r\n" +
           "\r\n" +
-          "Loop Detected: request has passed through portless too many times.\n" +
+          "Loop Detected: request has passed through portly too many times.\n" +
           "Add changeOrigin: true to your dev server proxy config.\n"
       );
       return;
@@ -296,7 +296,7 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
     for (const [key, value] of Object.entries(forwardedHeaders)) {
       proxyReqHeaders[key] = value;
     }
-    proxyReqHeaders[PORTLESS_HOPS_HEADER] = String(hops + 1);
+    proxyReqHeaders[PORTLY_HOPS_HEADER] = String(hops + 1);
     // Remove HTTP/2 pseudo-headers before forwarding to HTTP/1.1 backend
     for (const key of Object.keys(proxyReqHeaders)) {
       if (key.startsWith(":")) {
@@ -411,14 +411,12 @@ export function createProxyServer(options: ProxyServerOptions): ProxyServer {
     const plainServer = http.createServer((req, res) => {
       const host = getRequestHost(req).split(":")[0] || "localhost";
       const location = `https://${host}${proxyPort === 443 ? "" : `:${proxyPort}`}${req.url || "/"}`;
-      res.writeHead(302, { Location: location, [PORTLESS_HEADER]: "1" });
+      res.writeHead(302, { Location: location, [PORTLY_HEADER]: "1" });
       res.end();
     });
     plainServer.on("upgrade", (req: http.IncomingMessage, socket: net.Socket) => {
       const host = getRequestHost(req);
-      console.warn(
-        `[portless] Dropped plain-HTTP WebSocket upgrade for ${host}; use wss:// instead`
-      );
+      console.warn(`[portly] Dropped plain-HTTP WebSocket upgrade for ${host}; use wss:// instead`);
       socket.destroy();
     });
 
@@ -474,7 +472,7 @@ export function createHttpRedirectServer(httpsPort: number): http.Server {
     const host = (req.headers.host || "localhost").split(":")[0];
     const portSuffix = httpsPort === 443 ? "" : `:${httpsPort}`;
     const location = `https://${host}${portSuffix}${req.url || "/"}`;
-    res.writeHead(302, { Location: location, [PORTLESS_HEADER]: "1" });
+    res.writeHead(302, { Location: location, [PORTLY_HEADER]: "1" });
     res.end();
   });
 }

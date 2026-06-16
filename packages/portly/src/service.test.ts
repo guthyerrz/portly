@@ -96,7 +96,7 @@ describe("buildServiceSpec", () => {
     const spec = buildServiceSpec({
       platform: "darwin",
       nodePath: "/usr/local/bin/node",
-      entryScript: "/usr/local/lib/node_modules/portless/dist/cli.js",
+      entryScript: "/usr/local/lib/node_modules/portly/dist/cli.js",
       userHome: "/Users/alice",
       uid: "501",
       gid: "20",
@@ -104,10 +104,10 @@ describe("buildServiceSpec", () => {
 
     expect(spec.platform).toBe("darwin");
     if (spec.platform !== "darwin") throw new Error("Expected macOS service spec");
-    expect(spec.plistPath).toBe("/Library/LaunchDaemons/sh.portless.proxy.plist");
+    expect(spec.plistPath).toBe("/Library/LaunchDaemons/sh.portly.proxy.plist");
     expect(spec.programArguments).toEqual([
       "/usr/local/bin/node",
-      "/usr/local/lib/node_modules/portless/dist/cli.js",
+      "/usr/local/lib/node_modules/portly/dist/cli.js",
       "proxy",
       "start",
       "--foreground",
@@ -118,8 +118,8 @@ describe("buildServiceSpec", () => {
     ]);
     expect(spec.plist).toContain("<key>RunAtLoad</key>");
     expect(spec.plist).toContain("<key>KeepAlive</key>");
-    expect(spec.plist).toContain("<key>PORTLESS_STATE_DIR</key>");
-    expect(spec.plist).toContain("<string>/Users/alice/.portless</string>");
+    expect(spec.plist).toContain("<key>PORTLY_STATE_DIR</key>");
+    expect(spec.plist).toContain("<string>/Users/alice/.portly</string>");
     expect(spec.plist).toContain("<key>SUDO_UID</key>");
     expect(spec.plist).toContain("<string>501</string>");
   });
@@ -128,7 +128,7 @@ describe("buildServiceSpec", () => {
     const spec = buildServiceSpec({
       platform: "linux",
       nodePath: "/usr/bin/node",
-      entryScript: "/usr/lib/node_modules/portless/dist/cli.js",
+      entryScript: "/usr/lib/node_modules/portly/dist/cli.js",
       userHome: "/home/alice",
       uid: "1000",
       gid: "1000",
@@ -136,10 +136,10 @@ describe("buildServiceSpec", () => {
 
     expect(spec.platform).toBe("linux");
     if (spec.platform !== "linux") throw new Error("Expected Linux service spec");
-    expect(spec.unitPath).toBe("/etc/systemd/system/portless.service");
+    expect(spec.unitPath).toBe("/etc/systemd/system/portly.service");
     expect(spec.execStart).toEqual([
       "/usr/bin/node",
-      "/usr/lib/node_modules/portless/dist/cli.js",
+      "/usr/lib/node_modules/portly/dist/cli.js",
       "proxy",
       "start",
       "--foreground",
@@ -148,11 +148,11 @@ describe("buildServiceSpec", () => {
       "--https",
       "--skip-trust",
     ]);
-    expect(spec.unit).toContain("Description=Portless HTTPS proxy");
-    expect(spec.unit).toContain('Environment=PORTLESS_STATE_DIR="/home/alice/.portless"');
+    expect(spec.unit).toContain("Description=Portly HTTPS proxy");
+    expect(spec.unit).toContain('Environment=PORTLY_STATE_DIR="/home/alice/.portly"');
     expect(spec.unit).toContain('Environment=SUDO_UID="1000"');
     expect(spec.unit).toContain(
-      'ExecStart="/usr/bin/node" "/usr/lib/node_modules/portless/dist/cli.js" "proxy" "start" "--foreground" "--port" "443" "--https" "--skip-trust"'
+      'ExecStart="/usr/bin/node" "/usr/lib/node_modules/portly/dist/cli.js" "proxy" "start" "--foreground" "--port" "443" "--https" "--skip-trust"'
     );
     expect(spec.unit).toContain("WantedBy=multi-user.target");
   });
@@ -161,20 +161,20 @@ describe("buildServiceSpec", () => {
     const spec = buildServiceSpec({
       platform: "win32",
       nodePath: "C:\\Program Files\\nodejs\\node.exe",
-      entryScript: "C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\portless\\dist\\cli.js",
+      entryScript: "C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\portly\\dist\\cli.js",
       userHome: "C:\\Users\\Alice",
     });
 
     expect(spec.platform).toBe("win32");
     if (spec.platform !== "win32") throw new Error("Expected Windows service spec");
-    expect(spec.taskName).toBe("Portless Proxy");
+    expect(spec.taskName).toBe("Portly Proxy");
     expect(spec.createArgs).toContain("/SC");
     expect(spec.createArgs).toContain("ONSTART");
     expect(spec.createArgs).toContain("/RU");
     expect(spec.createArgs).toContain("SYSTEM");
-    expect(spec.scriptPath).toBe("C:\\ProgramData\\portless\\service\\portless-service.cmd");
-    expect(spec.taskRun).toBe('"C:\\ProgramData\\portless\\service\\portless-service.cmd"');
-    expect(spec.script).toContain("PORTLESS_STATE_DIR=C:\\Users\\Alice\\.portless");
+    expect(spec.scriptPath).toBe("C:\\ProgramData\\portly\\service\\portly-service.cmd");
+    expect(spec.taskRun).toBe('"C:\\ProgramData\\portly\\service\\portly-service.cmd"');
+    expect(spec.script).toContain("PORTLY_STATE_DIR=C:\\Users\\Alice\\.portly");
     expect(spec.script).toContain('"C:\\Program Files\\nodejs\\node.exe"');
     expect(spec.script).toContain("proxy");
     expect(spec.script).toContain("--port");
@@ -207,7 +207,7 @@ describe("buildServiceSpec", () => {
     });
 
     if (spec.platform !== "win32") throw new Error("Expected Windows service spec");
-    expect(spec.script).toContain("PORTLESS_STATE_DIR=C:\\Users\\100%%Done\\.portless");
+    expect(spec.script).toContain("PORTLY_STATE_DIR=C:\\Users\\100%%Done\\.portly");
     expect(spec.script).not.toMatch(/(?<!%)%(?!%)/);
   });
 
@@ -215,7 +215,7 @@ describe("buildServiceSpec", () => {
     const spec = buildServiceSpec({
       platform: "darwin",
       nodePath: "/usr/local/bin/node",
-      entryScript: "/usr/local/lib/portless/cli.js",
+      entryScript: "/usr/local/lib/portly/cli.js",
       userHome: "/Users/bob",
       uid: "501",
       gid: "20",
@@ -230,7 +230,7 @@ describe("buildServiceSpec", () => {
     const spec = buildServiceSpec({
       platform: "darwin",
       nodePath: "/usr/local/bin/node",
-      entryScript: "/usr/local/lib/portless/cli.js",
+      entryScript: "/usr/local/lib/portly/cli.js",
       userHome: "/Users/alice",
       uid: "501",
       gid: "20",
@@ -249,23 +249,23 @@ describe("buildServiceSpec", () => {
     expect(spec.programArguments).toContain("192.168.1.42");
     expect(spec.programArguments).toContain("--wildcard");
     expect(spec.programArguments).toContain("8443");
-    expect(spec.plist).toContain("<key>PORTLESS_LAN</key>");
+    expect(spec.plist).toContain("<key>PORTLY_LAN</key>");
     expect(spec.plist).toContain("<string>1</string>");
-    expect(spec.plist).toContain("<key>PORTLESS_LAN_IP</key>");
+    expect(spec.plist).toContain("<key>PORTLY_LAN_IP</key>");
     expect(spec.plist).toContain("<string>192.168.1.42</string>");
-    expect(spec.plist).toContain("<key>PORTLESS_WILDCARD</key>");
+    expect(spec.plist).toContain("<key>PORTLY_WILDCARD</key>");
   });
 
   it("persists no-TLS, custom TLD, and custom state in a Linux service", () => {
     const spec = buildServiceSpec({
       platform: "linux",
       nodePath: "/usr/bin/node",
-      entryScript: "/usr/lib/node_modules/portless/dist/cli.js",
+      entryScript: "/usr/lib/node_modules/portly/dist/cli.js",
       userHome: "/home/alice",
       uid: "1000",
       gid: "1000",
       installConfig: {
-        stateDir: "/srv/portless",
+        stateDir: "/srv/portly",
         proxyPort: 8080,
         useHttps: false,
         tld: "test",
@@ -278,11 +278,11 @@ describe("buildServiceSpec", () => {
     expect(spec.execStart).toContain("--tld");
     expect(spec.execStart).toContain("test");
     expect(spec.execStart).toContain("--wildcard");
-    expect(spec.unit).toContain('Environment=PORTLESS_STATE_DIR="/srv/portless"');
-    expect(spec.unit).toContain('Environment=PORTLESS_PORT="8080"');
-    expect(spec.unit).toContain('Environment=PORTLESS_HTTPS="0"');
-    expect(spec.unit).toContain('Environment=PORTLESS_TLD="test"');
-    expect(spec.stateDir).toBe("/srv/portless");
+    expect(spec.unit).toContain('Environment=PORTLY_STATE_DIR="/srv/portly"');
+    expect(spec.unit).toContain('Environment=PORTLY_PORT="8080"');
+    expect(spec.unit).toContain('Environment=PORTLY_HTTPS="0"');
+    expect(spec.unit).toContain('Environment=PORTLY_TLD="test"');
+    expect(spec.stateDir).toBe("/srv/portly");
   });
 });
 
@@ -292,17 +292,17 @@ describe("buildServiceUninstallSudoArgs", () => {
       nodePath: "/usr/bin/node",
       home: "/Users/alice",
       env: {
-        PORTLESS_STATE_DIR: "/Users/alice/.portless",
-        PORTLESS_DEBUG: "1",
+        PORTLY_STATE_DIR: "/Users/alice/.portly",
+        PORTLY_DEBUG: "1",
         OTHER_ENV: "ignored",
       },
     });
 
     expect(args).toEqual([
       "env",
-      "PORTLESS_DEBUG=1",
+      "PORTLY_DEBUG=1",
       "HOME=/Users/alice",
-      "PORTLESS_STATE_DIR=/Users/alice/.portless",
+      "PORTLY_STATE_DIR=/Users/alice/.portly",
       "/usr/bin/node",
       "/fake/cli.js",
       "service",
@@ -378,7 +378,7 @@ describe("handleService", () => {
     ).rejects.toThrow("process.exit");
     expect(exitSpy).toHaveBeenCalledWith(0);
     const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
-    expect(output).toContain("portless service");
+    expect(output).toContain("portly service");
     expect(output).toContain("service install");
     expect(output).toContain("service uninstall");
     expect(output).toContain("service status");
@@ -446,7 +446,7 @@ describe("handleService", () => {
         call.args.join(" ") === "/fake/cli.js proxy stop --port 443"
     );
     const restartIndex = calls.findIndex(
-      (call) => call.command === "systemctl" && call.args.join(" ") === "restart portless.service"
+      (call) => call.command === "systemctl" && call.args.join(" ") === "restart portly.service"
     );
 
     expect(stopIndex).toBeGreaterThanOrEqual(0);
@@ -480,7 +480,7 @@ describe("handleService", () => {
     const currentPort = 19000;
     const targetPort = 19001;
     vi.mocked(discoverState).mockResolvedValue({
-      dir: "/tmp/portless-service-current-test",
+      dir: "/tmp/portly-service-current-test",
       port: currentPort,
       tls: true,
       tld: "localhost",
@@ -514,10 +514,10 @@ describe("handleService", () => {
   it("does not validate proxy env while uninstalling", async () => {
     setPlatform("linux");
     setGetuid(0);
-    const originalPort = process.env.PORTLESS_PORT;
-    const originalTld = process.env.PORTLESS_TLD;
-    process.env.PORTLESS_PORT = "abc";
-    process.env.PORTLESS_TLD = "bad-name";
+    const originalPort = process.env.PORTLY_PORT;
+    const originalTld = process.env.PORTLY_TLD;
+    process.env.PORTLY_PORT = "abc";
+    process.env.PORTLY_TLD = "bad-name";
     const runner = vi.fn((_: string, _args: string[]) => ({
       status: 0,
       stdout: "",
@@ -531,19 +531,19 @@ describe("handleService", () => {
       });
     } finally {
       if (originalPort === undefined) {
-        delete process.env.PORTLESS_PORT;
+        delete process.env.PORTLY_PORT;
       } else {
-        process.env.PORTLESS_PORT = originalPort;
+        process.env.PORTLY_PORT = originalPort;
       }
       if (originalTld === undefined) {
-        delete process.env.PORTLESS_TLD;
+        delete process.env.PORTLY_TLD;
       } else {
-        process.env.PORTLESS_TLD = originalTld;
+        process.env.PORTLY_TLD = originalTld;
       }
     }
 
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(runner).toHaveBeenCalledWith("systemctl", ["disable", "--now", "portless.service"]);
+    expect(runner).toHaveBeenCalledWith("systemctl", ["disable", "--now", "portly.service"]);
   });
 
   it("normalizes relative install paths before writing the Linux service", async () => {
@@ -580,11 +580,11 @@ describe("handleService", () => {
     const systemdKeyPath = keyPath.replace(/\\/g, "\\\\");
     const unitWrite = vi
       .mocked(writeFileSync)
-      .mock.calls.find(([file]) => file === "/etc/systemd/system/portless.service");
+      .mock.calls.find(([file]) => file === "/etc/systemd/system/portly.service");
     const unit = String(unitWrite?.[1] ?? "");
 
     expect(mkdirSync).toHaveBeenCalledWith(stateDir, { recursive: true });
-    expect(unit).toContain(`Environment=PORTLESS_STATE_DIR="${systemdStateDir}"`);
+    expect(unit).toContain(`Environment=PORTLY_STATE_DIR="${systemdStateDir}"`);
     expect(unit).toContain(`"--cert" "${systemdCertPath}" "--key" "${systemdKeyPath}"`);
   });
 
@@ -597,7 +597,7 @@ describe("handleService", () => {
       entryScript: "/fake/cli.js",
       userHome: "/home/alice",
       installConfig: {
-        stateDir: "/srv/portless",
+        stateDir: "/srv/portly",
         proxyPort: 8443,
         useHttps: false,
         lanMode: true,
@@ -635,6 +635,6 @@ describe("handleService", () => {
     expect(output).toContain("LAN mode: yes");
     expect(output).toContain("LAN IP: 192.168.1.42");
     expect(output).toContain("Wildcard: yes");
-    expect(output).toContain("State directory: /srv/portless");
+    expect(output).toContain("State directory: /srv/portly");
   });
 });
