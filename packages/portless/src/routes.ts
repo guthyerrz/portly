@@ -28,6 +28,10 @@ export interface RouteMapping extends RouteInfo {
   tailscaleFunnel?: boolean;
   ngrokUrl?: string;
   ngrokPid?: number;
+  cloudflaredUrl?: string;
+  cloudflaredPid?: number;
+  /** Set only for named (persistent) tunnels; the deterministic tunnel name. */
+  cloudflaredTunnelName?: string;
 }
 
 type RouteMetadataPatch = {
@@ -36,6 +40,9 @@ type RouteMetadataPatch = {
   tailscaleFunnel?: boolean | null;
   ngrokUrl?: string | null;
   ngrokPid?: number | null;
+  cloudflaredUrl?: string | null;
+  cloudflaredPid?: number | null;
+  cloudflaredTunnelName?: string | null;
 };
 
 /** Runtime check that a parsed JSON value is a valid RouteMapping. */
@@ -339,6 +346,19 @@ export class RouteStore {
       if ("ngrokPid" in fields) {
         if (fields.ngrokPid === null) delete route.ngrokPid;
         else if (fields.ngrokPid !== undefined) route.ngrokPid = fields.ngrokPid;
+      }
+      if ("cloudflaredUrl" in fields) {
+        if (fields.cloudflaredUrl === null) delete route.cloudflaredUrl;
+        else if (fields.cloudflaredUrl !== undefined) route.cloudflaredUrl = fields.cloudflaredUrl;
+      }
+      if ("cloudflaredPid" in fields) {
+        if (fields.cloudflaredPid === null) delete route.cloudflaredPid;
+        else if (fields.cloudflaredPid !== undefined) route.cloudflaredPid = fields.cloudflaredPid;
+      }
+      if ("cloudflaredTunnelName" in fields) {
+        if (fields.cloudflaredTunnelName === null) delete route.cloudflaredTunnelName;
+        else if (fields.cloudflaredTunnelName !== undefined)
+          route.cloudflaredTunnelName = fields.cloudflaredTunnelName;
       }
       this.saveRoutes(routes);
     } finally {

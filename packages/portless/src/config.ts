@@ -8,11 +8,17 @@ export class ConfigValidationError extends Error {
   }
 }
 
+export interface CloudflareConfig {
+  /** Stable public hostname for a named Cloudflare tunnel (e.g. hooks.example.com). */
+  hostname?: string;
+}
+
 export interface AppConfig {
   name?: string;
   script?: string;
   appPort?: number;
   proxy?: boolean;
+  cloudflare?: CloudflareConfig;
 }
 
 export interface PortlessConfig extends AppConfig {
@@ -125,7 +131,13 @@ export function resolveAppConfig(
     }
     return {};
   }
-  return { name: config.name, script: config.script, appPort: config.appPort, proxy: config.proxy };
+  return {
+    name: config.name,
+    script: config.script,
+    appPort: config.appPort,
+    proxy: config.proxy,
+    cloudflare: config.cloudflare,
+  };
 }
 
 /**
@@ -294,8 +306,31 @@ function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
   return err instanceof Error && "code" in err;
 }
 
-const KNOWN_TOP_KEYS = new Set(["name", "script", "appPort", "proxy", "apps", "turbo"]);
-const KNOWN_APP_KEYS = new Set(["name", "script", "appPort", "proxy"]);
+const KNOWN_TOP_KEYS = new Set([
+  "name",
+  "script",
+  "appPort",
+  "proxy",
+  "cloudflare",
+  "apps",
+  "turbo",
+]);
+const KNOWN_APP_KEYS = new Set(["name", "script", "appPort", "proxy", "cloudflare"]);
+
+function validateCloudflare(value: unknown, prefix: string, configPath: string): void {
+  if (value === undefined) return;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new ConfigValidationError(`"${prefix}" in ${configPath} must be an object.`);
+  }
+  const cf = value as Record<string, unknown>;
+  if (cf.hostname !== undefined) {
+    if (typeof cf.hostname !== "string" || !cf.hostname.trim()) {
+      throw new ConfigValidationError(
+        `"${prefix}.hostname" in ${configPath} must be a non-empty string.`
+      );
+    }
+  }
+}
 
 function validateConfig(config: unknown, configPath: string): asserts config is PortlessConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
@@ -340,6 +375,8 @@ function validateConfig(config: unknown, configPath: string): asserts config is 
       throw new ConfigValidationError(`"turbo" in ${configPath} must be a boolean.`);
     }
   }
+
+  validateCloudflare(obj.cloudflare, "cloudflare", configPath);
 
   if (obj.apps !== undefined) {
     if (typeof obj.apps !== "object" || obj.apps === null || Array.isArray(obj.apps)) {
@@ -388,6 +425,8 @@ function validateAppConfig(obj: Record<string, unknown>, prefix: string, configP
       throw new ConfigValidationError(`"${prefix}.proxy" in ${configPath} must be a boolean.`);
     }
   }
+
+  validateCloudflare(obj.cloudflare, `${prefix}.cloudflare`, configPath);
 
   warnUnknownKeys(obj, KNOWN_APP_KEYS, configPath, prefix);
 }

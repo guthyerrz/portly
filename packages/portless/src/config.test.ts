@@ -276,6 +276,31 @@ describe("loadConfig validation", () => {
     expect(result?.config.turbo).toBe(false);
   });
 
+  it("accepts a cloudflare.hostname string", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "portless.json"),
+      JSON.stringify({ name: "test", cloudflare: { hostname: "hooks.example.com" } })
+    );
+    const result = loadConfig(tmpDir);
+    expect(result?.config.cloudflare?.hostname).toBe("hooks.example.com");
+  });
+
+  it("throws when cloudflare is not an object", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "portless.json"),
+      JSON.stringify({ cloudflare: "hooks.example.com" })
+    );
+    expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
+  });
+
+  it("throws when cloudflare.hostname is empty", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "portless.json"),
+      JSON.stringify({ cloudflare: { hostname: "" } })
+    );
+    expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);
+  });
+
   it("throws when turbo is not a boolean", () => {
     fs.writeFileSync(path.join(tmpDir, "portless.json"), JSON.stringify({ turbo: "yes" }));
     expect(() => loadConfig(tmpDir)).toThrow(ConfigValidationError);

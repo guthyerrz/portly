@@ -23,6 +23,22 @@ import {
 } from "./tailscale.js";
 import { ensureNgrokAvailable, startNgrok, stopNgrok, stopNgrokProcess } from "./ngrok.js";
 import {
+  ensureCloudflaredAvailable,
+  startCloudflared,
+  stopCloudflared,
+  stopCloudflaredProcess,
+} from "./cloudflared.js";
+import {
+  deleteNamedTunnel,
+  ensureDnsRoute,
+  ensureLoggedIn,
+  ensureNamedTunnel,
+  isLoggedIn,
+  loginCloudflared,
+  startNamedTunnel,
+  tunnelNameForHostname,
+} from "./cloudflared-named.js";
+import {
   inferProjectName,
   detectWorktreePrefix,
   truncateLabel,
@@ -829,6 +845,10 @@ function listRoutes(store: RouteStore, proxyPort: number, tls: boolean): void {
     if (route.ngrokUrl) {
       console.log(`    ${colors.gray("ngrok:")} ${colors.green(route.ngrokUrl)}`);
     }
+    if (route.cloudflaredUrl) {
+      const cfLabel = route.cloudflaredTunnelName ? "cloudflare (named)" : "cloudflared";
+      console.log(`    ${colors.gray(cfLabel + ":")} ${colors.green(route.cloudflaredUrl)}`);
+    }
   }
   console.log();
 }
@@ -998,6 +1018,10 @@ async function runApp(
   const wantsFunnel = isEnabledEnv(process.env.PORTLESS_FUNNEL);
   const wantsTailscale = wantsFunnel || isEnabledEnv(process.env.PORTLESS_TAILSCALE);
   const wantsNgrok = isEnabledEnv(process.env.PORTLESS_NGROK);
+  const wantsCloudflared = isEnabledEnv(process.env.PORTLESS_CLOUDFLARE);
+  // A hostname upgrades --cloudflare from an anonymous quick tunnel to a stable
+  // named tunnel backed by the user's own Cloudflare account + domain.
+  const cloudflaredHostname = process.env.PORTLESS_CLOUDFLARE_HOSTNAME?.trim() || undefined;
   let tsBaseUrl: string | undefined;
 
   if (wantsTailscale) {
@@ -1028,6 +1052,30 @@ async function runApp(
       console.error(colors.red(`Error: ${message}`));
       if (message.includes("not found")) {
         console.error(colors.blue("Install ngrok: https://ngrok.com/download"));
+      }
+      process.exit(1);
+    }
+  }
+
+  if (wantsCloudflared) {
+    try {
+      ensureCloudflaredAvailable();
+      // Named tunnels require a one-time browser login; fail fast and friendly
+      // before starting the proxy if it hasn't been done.
+      if (cloudflaredHostname) {
+        ensureLoggedIn();
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(colors.red(`Error: ${message}`));
+      if (message.includes("not found")) {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      } else if (message.includes("tunnel login")) {
+        console.error(colors.cyan("  portless tunnel login"));
       }
       process.exit(1);
     }
@@ -1139,6 +1187,15 @@ async function runApp(
   let ngrokRouteReady = false;
   let ngrokExitHandled = false;
   let pendingNgrokExit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  let cloudflaredUrl: string | undefined;
+  let cloudflaredProcess:
+    | Awaited<ReturnType<typeof startCloudflared>>
+    | Awaited<ReturnType<typeof startNamedTunnel>>
+    | undefined;
+  let stoppingCloudflared = false;
+  let cloudflaredRouteReady = false;
+  let cloudflaredExitHandled = false;
+  let pendingCloudflaredExit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
 
   const handleNgrokExit = (code: number | null, signal: NodeJS.Signals | null) => {
     if (stoppingNgrok || ngrokExitHandled) return;
@@ -1160,6 +1217,32 @@ async function runApp(
       store.updateRoute(hostname, {
         ngrokUrl: null,
         ngrokPid: null,
+      });
+    } catch {
+      // Best-effort cleanup; non-fatal
+    }
+  };
+
+  const handleCloudflaredExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    if (stoppingCloudflared || cloudflaredExitHandled) return;
+    if (!cloudflaredRouteReady) {
+      pendingCloudflaredExit = { code, signal };
+      return;
+    }
+    cloudflaredExitHandled = true;
+    cloudflaredUrl = undefined;
+    console.warn(
+      colors.yellow(
+        `Warning: cloudflared tunnel for ${hostname} stopped${formatProcessExitSuffix(
+          code,
+          signal
+        )}. Removing its public URL from the route list.`
+      )
+    );
+    try {
+      store.updateRoute(hostname, {
+        cloudflaredUrl: null,
+        cloudflaredPid: null,
       });
     } catch {
       // Best-effort cleanup; non-fatal
@@ -1259,6 +1342,117 @@ async function runApp(
     }
   }
 
+  // Shared teardown when a Cloudflare tunnel fails to start: stop the
+  // already-started ngrok/tailscale sharing for this route and drop the route.
+  const failCloudflaredStartup = (): never => {
+    stopNgrokProcess(ngrokProcess?.child);
+    try {
+      unregisterTailscale({
+        tailscaleHttpsPort,
+        tailscaleFunnel: wantsFunnel || undefined,
+      });
+    } catch {
+      // Best-effort cleanup; non-fatal
+    }
+    try {
+      store.removeRoute(hostname, process.pid);
+    } catch {
+      // Best-effort cleanup; non-fatal
+    }
+    process.exit(1);
+  };
+
+  if (wantsCloudflared && cloudflaredHostname) {
+    // Named (persistent) tunnel: provision against the user's Cloudflare
+    // account, reuse the tunnel + DNS record on later runs, and tie only the
+    // run process to the app lifecycle so the public URL survives restarts.
+    try {
+      console.log(chalk.gray(`  Provisioning Cloudflare tunnel for ${cloudflaredHostname}...`));
+      const tunnel = ensureNamedTunnel(cloudflaredHostname);
+      ensureDnsRoute(tunnel.name, cloudflaredHostname);
+      cloudflaredProcess = await startNamedTunnel(tunnel, port, cloudflaredHostname, {
+        onExit: handleCloudflaredExit,
+      });
+      cloudflaredUrl = cloudflaredProcess.url;
+      console.log(chalk.green(`  Cloudflare (named) -> ${cloudflaredUrl}`));
+      console.log(
+        chalk.gray(
+          "  (stable public URL via your Cloudflare account; tunnel + DNS persist across runs)\n"
+        )
+      );
+
+      try {
+        store.updateRoute(hostname, {
+          cloudflaredUrl,
+          cloudflaredPid: cloudflaredProcess.pid,
+          cloudflaredTunnelName: tunnel.name,
+        });
+      } catch {
+        // Non-fatal: route display metadata only
+      } finally {
+        cloudflaredRouteReady = true;
+        if (pendingCloudflaredExit) {
+          handleCloudflaredExit(pendingCloudflaredExit.code, pendingCloudflaredExit.signal);
+          pendingCloudflaredExit = undefined;
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(colors.red(`Error: ${message}`));
+      if (message.includes("tunnel login")) {
+        console.error(colors.cyan("  portless tunnel login"));
+      } else if (message.includes("not found")) {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      }
+      failCloudflaredStartup();
+    }
+  } else if (wantsCloudflared) {
+    // Quick (anonymous, ephemeral) tunnel.
+    try {
+      cloudflaredProcess = await startCloudflared(port, {
+        hostHeader: hostname,
+        onExit: handleCloudflaredExit,
+      });
+      cloudflaredUrl = cloudflaredProcess.url;
+      console.log(chalk.green(`  cloudflared -> ${cloudflaredUrl}`));
+      console.log(
+        chalk.gray(
+          "  (accessible from the public internet via Cloudflare; quick tunnels rotate and may be rate-limited)\n"
+        )
+      );
+
+      try {
+        store.updateRoute(hostname, {
+          cloudflaredUrl,
+          cloudflaredPid: cloudflaredProcess.pid,
+        });
+      } catch {
+        // Non-fatal: route display metadata only
+      } finally {
+        cloudflaredRouteReady = true;
+        if (pendingCloudflaredExit) {
+          handleCloudflaredExit(pendingCloudflaredExit.code, pendingCloudflaredExit.signal);
+          pendingCloudflaredExit = undefined;
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(colors.red(`Error: ${message}`));
+      if (message.includes("not found")) {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      }
+      failCloudflaredStartup();
+    }
+  }
+
   // Child servers always bind to localhost; the proxy handles cross-device LAN access.
   // Exception: Expo in LAN mode — Metro defaults to LAN and setting HOST=127.0.0.1
   // conflicts with its internal networking, causing HMR WebSocket degradation.
@@ -1316,11 +1510,14 @@ async function runApp(
       ...(lanMode ? { PORTLESS_LAN: "1" } : {}),
       ...(tailscaleUrl ? { PORTLESS_TAILSCALE_URL: tailscaleUrl } : {}),
       ...(ngrokUrl ? { PORTLESS_NGROK_URL: ngrokUrl } : {}),
+      ...(cloudflaredUrl ? { PORTLESS_CLOUDFLARE_URL: cloudflaredUrl } : {}),
       ...caEnv,
     },
     onCleanup: () => {
       stoppingNgrok = true;
       stopNgrokProcess(ngrokProcess?.child);
+      stoppingCloudflared = true;
+      stopCloudflaredProcess(cloudflaredProcess?.child);
       try {
         unregisterTailscale({
           tailscaleHttpsPort,
@@ -1395,6 +1592,10 @@ function applySharingFlag(flag: string): boolean {
     process.env.PORTLESS_NGROK = "1";
     return true;
   }
+  if (flag === "--cloudflare") {
+    process.env.PORTLESS_CLOUDFLARE = "1";
+    return true;
+  }
   return false;
 }
 
@@ -1432,6 +1633,8 @@ ${colors.bold("Options:")}
   --tailscale            Share the app on your Tailscale network (tailnet)
   --funnel               Share the app publicly via Tailscale Funnel
   --ngrok                Share the app publicly via ngrok
+  --cloudflare           Share the app publicly via a Cloudflare quick tunnel
+  --hostname <fqdn>      Stable public hostname for a named Cloudflare tunnel (implies --cloudflare)
   --help, -h             Show this help
 
 ${colors.bold("Name inference (in order):")}
@@ -1471,7 +1674,7 @@ ${colors.bold("Examples:")}
       console.error(colors.red(`Error: Unknown flag "${args[i]}".`));
       console.error(
         colors.blue(
-          "Known flags: --name, --force, --app-port, --tailscale, --funnel, --ngrok, --help"
+          "Known flags: --name, --force, --app-port, --tailscale, --funnel, --ngrok, --cloudflare, --help"
         )
       );
       process.exit(1);
@@ -1511,7 +1714,9 @@ function parseAppArgs(args: string[]): ParsedAppArgs {
     } else {
       console.error(colors.red(`Error: Unknown flag "${args[i]}".`));
       console.error(
-        colors.blue("Known flags: --force, --app-port, --tailscale, --funnel, --ngrok")
+        colors.blue(
+          "Known flags: --force, --app-port, --tailscale, --funnel, --ngrok, --cloudflare"
+        )
       );
       process.exit(1);
     }
@@ -1537,7 +1742,9 @@ function parseAppArgs(args: string[]): ParsedAppArgs {
     } else {
       console.error(colors.red(`Error: Unknown flag "${args[i]}".`));
       console.error(
-        colors.blue("Known flags: --force, --app-port, --tailscale, --funnel, --ngrok")
+        colors.blue(
+          "Known flags: --force, --app-port, --tailscale, --funnel, --ngrok, --cloudflare"
+        )
       );
       process.exit(1);
     }
@@ -1600,6 +1807,8 @@ ${colors.bold("Examples:")}
   portless myapp --tailscale next dev # -> also https://<node>.ts.net (tailnet)
   portless myapp --funnel next dev    # -> also https://<node>.ts.net (public)
   portless myapp --ngrok next dev     # -> also https://<random>.ngrok.app (public)
+  portless myapp --cloudflare next dev # -> also https://<random>.trycloudflare.com (public)
+  portless myapp --hostname h.you.com next dev # -> also https://h.you.com (stable, named)
 
 ${colors.bold("Configuration (portless.json):")}
   Optional. Portless works out of the box by running the "dev" script
@@ -1666,6 +1875,19 @@ ${colors.bold("ngrok sharing:")}
   Requires the ngrok CLI to be installed and authenticated.
   ${colors.cyan("portless myapp --ngrok next dev")}
 
+${colors.bold("Cloudflare sharing:")}
+  Use --cloudflare for an anonymous Cloudflare quick tunnel. Requires only the
+  cloudflared CLI; no account, login, or domain. The *.trycloudflare.com URL is
+  meant for testing — it rotates between runs and may be rate-limited, so it is
+  not suitable for stable webhook registration.
+  ${colors.cyan("portless myapp --cloudflare next dev")}
+
+  Add --hostname for a stable named tunnel on your own Cloudflare domain. The
+  tunnel and DNS record persist across runs, so the URL stays registered with
+  webhook providers. Authorize a domain once with "portless tunnel login".
+  ${colors.cyan("portless tunnel login")}
+  ${colors.cyan("portless myapp --cloudflare --hostname hooks.example.com next dev")}
+
 ${colors.bold("Options:")}
   run [--name <name>] <cmd>      Infer project name (or override with --name)
                                 Adds worktree prefix in git worktrees
@@ -1686,6 +1908,8 @@ ${colors.bold("Options:")}
   --tailscale                   Share the app on your Tailscale network (tailnet)
   --funnel                      Share the app publicly via Tailscale Funnel
   --ngrok                       Share the app publicly via ngrok
+  --cloudflare                  Share the app publicly via a Cloudflare quick tunnel
+  --hostname <fqdn>             Stable public hostname for a named Cloudflare tunnel (implies --cloudflare)
   --force                       Kill the existing process and take over its route
   --name <name>                 Use <name> as the app name (bypasses subcommand dispatch)
   --                            Stop flag parsing; everything after is passed to the child
@@ -1702,6 +1926,8 @@ ${colors.bold("Environment variables:")}
   PORTLESS_TAILSCALE=1          Share apps on your Tailscale network (same as --tailscale)
   PORTLESS_FUNNEL=1             Share apps publicly via Tailscale Funnel (same as --funnel)
   PORTLESS_NGROK=1              Share apps publicly via ngrok (same as --ngrok)
+  PORTLESS_CLOUDFLARE=1         Share apps publicly via Cloudflare quick tunnel (same as --cloudflare)
+  PORTLESS_CLOUDFLARE_HOSTNAME  Stable hostname for a named Cloudflare tunnel (same as --hostname)
   PORTLESS_STATE_DIR=<path>     Override the state directory
   PORTLESS=0                    Run command directly without proxy
 
@@ -1712,6 +1938,7 @@ ${colors.bold("Child process environment:")}
   PORTLESS_LAN                  Set to 1 when proxy is in LAN mode
   PORTLESS_TAILSCALE_URL        Tailscale URL of the app (when --tailscale is active)
   PORTLESS_NGROK_URL            ngrok URL of the app (when --ngrok is active)
+  PORTLESS_CLOUDFLARE_URL       Cloudflare quick tunnel URL of the app (when --cloudflare is active)
   NODE_EXTRA_CA_CERTS           Path to the portless CA (set when HTTPS is active)
 
 ${colors.bold("Safari / DNS:")}
@@ -1727,8 +1954,8 @@ ${colors.bold("Skip portless:")}
   PORTLESS=0 pnpm dev           # Runs command directly without proxy
 
 ${colors.bold("Reserved names:")}
-  run, get, alias, hosts, list, trust, clean, prune, proxy, service are subcommands and
-  cannot be used as app names directly. Use "portless run" to infer the name,
+  run, get, alias, hosts, list, trust, clean, prune, proxy, service, tunnel are subcommands
+  and cannot be used as app names directly. Use "portless run" to infer the name,
   or "portless --name <name>" to force any name including reserved ones.
 `);
   process.exit(0);
@@ -1858,6 +2085,10 @@ ${colors.bold("Options:")}
       stopNgrok(route);
       console.log(colors.green(`Stopped ngrok tunnel for ${route.hostname}.`));
     }
+    if (route.cloudflaredPid) {
+      stopCloudflared(route);
+      console.log(colors.green(`Stopped cloudflared tunnel for ${route.hostname}.`));
+    }
   }
 
   const stateDirs = collectStateDirsForCleanup();
@@ -1951,6 +2182,10 @@ ${colors.bold("Options:")}
       stopNgrok(route);
       console.log(`  ${route.hostname} - stopped ngrok tunnel`);
     }
+    if (route.cloudflaredPid) {
+      stopCloudflared(route);
+      console.log(`  ${route.hostname} - stopped cloudflared tunnel`);
+    }
   }
 
   let killed = 0;
@@ -1987,6 +2222,120 @@ async function handleList(): Promise<void> {
     onWarning: (msg) => console.warn(colors.yellow(msg)),
   });
   listRoutes(store, port, tls);
+}
+
+function printTunnelHelp(): void {
+  console.log(`
+${colors.bold("portless tunnel")} - Manage named Cloudflare tunnels for stable public URLs.
+
+Named tunnels give an app a stable public hostname on your own domain
+(e.g. https://hooks.example.com) backed by your own Cloudflare account, so
+webhook registrations survive restarts. Use them by adding --hostname to a run:
+
+  ${colors.cyan("portless myapp --cloudflare --hostname hooks.example.com next dev")}
+
+${colors.bold("Usage:")}
+  ${colors.cyan("portless tunnel login")}                 Authorize a domain (one-time, opens a browser)
+  ${colors.cyan("portless tunnel list")}                  List your Cloudflare tunnels
+  ${colors.cyan("portless tunnel delete <hostname>")}     Delete a portly-managed named tunnel
+
+${colors.bold("Notes:")}
+  Deleting a tunnel does not remove its DNS record; remove the CNAME from the
+  Cloudflare dashboard if you no longer want the hostname to resolve.
+`);
+}
+
+async function handleTunnel(args: string[]): Promise<void> {
+  const sub = args[1];
+
+  if (!sub || sub === "--help" || sub === "-h") {
+    printTunnelHelp();
+    process.exit(sub ? 0 : 1);
+  }
+
+  if (sub === "login") {
+    try {
+      if (isLoggedIn()) {
+        console.log(colors.gray("Already logged in to Cloudflare. Re-authorizing..."));
+      }
+      console.log(colors.blue("Opening Cloudflare to authorize a domain..."));
+      loginCloudflared();
+      console.log(colors.green("\nLogged in. You can now run apps with a stable hostname:"));
+      console.log(
+        colors.cyan("  portless myapp --cloudflare --hostname hooks.example.com next dev")
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(colors.red(`Error: ${message}`));
+      if (message.includes("not found")) {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      }
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (sub === "list") {
+    const result = spawnSync("cloudflared", ["tunnel", "list"], { stdio: "inherit" });
+    if (result.error) {
+      const errno = result.error as NodeJS.ErrnoException;
+      console.error(
+        colors.red(
+          errno.code === "ENOENT"
+            ? "Error: cloudflared CLI not found."
+            : `Error: ${result.error.message}`
+        )
+      );
+      if (errno.code === "ENOENT") {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      }
+      process.exit(1);
+    }
+    process.exit(result.status ?? 0);
+  }
+
+  if (sub === "delete") {
+    const target = args[2];
+    if (!target) {
+      console.error(colors.red("Error: tunnel delete requires a hostname or tunnel name."));
+      console.error(colors.cyan("  portless tunnel delete hooks.example.com"));
+      process.exit(1);
+    }
+    const tunnelName = target.startsWith("portly-") ? target : tunnelNameForHostname(target);
+    try {
+      deleteNamedTunnel(tunnelName);
+      console.log(colors.green(`Deleted tunnel "${tunnelName}".`));
+      console.log(
+        colors.yellow(
+          "Note: the DNS record was left in place. Remove the CNAME from the Cloudflare dashboard if you no longer want the hostname to resolve."
+        )
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(colors.red(`Error: ${message}`));
+      if (message.includes("not found")) {
+        console.error(
+          colors.blue(
+            "Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+          )
+        );
+      }
+      process.exit(1);
+    }
+    return;
+  }
+
+  console.error(colors.red(`Error: Unknown tunnel subcommand "${sub}".`));
+  console.error(colors.blue("Known subcommands: login, list, delete"));
+  process.exit(1);
 }
 
 async function handleGet(args: string[]): Promise<void> {
@@ -2758,6 +3107,19 @@ function loadAppConfig(cwd: string = process.cwd()): AppConfig | null {
 }
 
 /**
+ * Apply a portless.json `cloudflare.hostname` as the named-tunnel hostname,
+ * unless an explicit --hostname flag / env var already set one (those win).
+ * Setting a hostname implies the Cloudflare provider.
+ */
+function applyCloudflareHostnameConfig(appConfig: AppConfig | null): void {
+  const hostname = appConfig?.cloudflare?.hostname?.trim();
+  if (hostname && !process.env.PORTLESS_CLOUDFLARE_HOSTNAME) {
+    process.env.PORTLESS_CLOUDFLARE_HOSTNAME = hostname;
+    process.env.PORTLESS_CLOUDFLARE = "1";
+  }
+}
+
+/**
  * Zero-arg dispatch: `portless` with no arguments.
  * Returns true if handled, false to fall through to help text.
  *
@@ -2814,6 +3176,7 @@ async function handleDefaultSingle(
   scriptName: string,
   appConfig: AppConfig | null
 ): Promise<void> {
+  applyCloudflareHostnameConfig(appConfig);
   const resolved = resolveScriptCommand(scriptName, cwd);
   if (!resolved) {
     console.error(colors.red(`Error: No "${scriptName}" script found in package.json.`));
@@ -3391,6 +3754,7 @@ async function handleRunMode(args: string[], globalScript?: string): Promise<voi
   const parsed = parseRunArgs(args);
 
   const appConfig = loadAppConfig();
+  applyCloudflareHostnameConfig(appConfig);
 
   if (parsed.commandArgs.length === 0) {
     const scriptName = globalScript ?? appConfig?.script ?? "dev";
@@ -3471,12 +3835,11 @@ async function handleNamedMode(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  if (!parsed.appPort) {
-    const appConfig = loadAppConfig();
-    if (appConfig?.appPort) {
-      parsed.appPort = appConfig.appPort;
-    }
+  const appConfig = loadAppConfig();
+  if (!parsed.appPort && appConfig?.appPort) {
+    parsed.appPort = appConfig.appPort;
   }
+  applyCloudflareHostnameConfig(appConfig);
 
   // Truncate individual labels that exceed the DNS limit, same as handleRunMode.
   const safeName = parsed.name
@@ -3593,6 +3956,22 @@ async function main() {
   if (stripGlobalFlag("--ngrok", false)) {
     process.env.PORTLESS_NGROK = "1";
   }
+  if (stripGlobalFlag("--cloudflare", false)) {
+    process.env.PORTLESS_CLOUDFLARE = "1";
+  }
+
+  // --hostname flag: the stable public hostname for a named Cloudflare tunnel.
+  // Implies --cloudflare. Stripped globally so it works in any position.
+  const hostnameResult = stripGlobalFlag("--hostname", true);
+  if (hostnameResult === false) {
+    console.error(colors.red("Error: --hostname requires a fully-qualified domain name."));
+    console.error(colors.cyan("  portless myapp --cloudflare --hostname app.example.com next dev"));
+    process.exit(1);
+  } else if (typeof hostnameResult === "string") {
+    process.env.PORTLESS_CLOUDFLARE_HOSTNAME = hostnameResult;
+    // A hostname only makes sense with the Cloudflare provider; turn it on.
+    process.env.PORTLESS_CLOUDFLARE = "1";
+  }
 
   // --script flag: override the default "dev" script for zero-arg mode.
   const scriptResult = stripGlobalFlag("--script", true);
@@ -3644,7 +4023,11 @@ async function main() {
     skipPortless &&
     (isRunCommand ||
       args.length === 0 ||
-      (args.length >= 2 && args[0] !== "proxy" && args[0] !== "clean" && args[0] !== "service"))
+      (args.length >= 2 &&
+        args[0] !== "proxy" &&
+        args[0] !== "clean" &&
+        args[0] !== "service" &&
+        args[0] !== "tunnel"))
   ) {
     const parsed = isRunCommand ? parseRunArgs(args) : parseAppArgs(args);
     let commandArgs = parsed.commandArgs;
@@ -3715,6 +4098,10 @@ async function main() {
     }
     if (args[0] === "service") {
       await handleService(args, { entryScript: getEntryScript() });
+      return;
+    }
+    if (args[0] === "tunnel") {
+      await handleTunnel(args);
       return;
     }
   }

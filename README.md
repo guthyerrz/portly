@@ -337,6 +337,56 @@ Set `PORTLESS_NGROK=1` in your shell profile or `.env` to enable ngrok by defaul
 
 Requires the ngrok CLI to be installed and authenticated. If ngrok reports an authentication error, run `ngrok config add-authtoken <token>` and try again.
 
+## Cloudflare sharing
+
+Expose your dev server to the public internet via a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) — no account, login, or domain required:
+
+```bash
+portless myapp --cloudflare next dev
+# -> https://myapp.localhost                    (local)
+# -> https://random-words.trycloudflare.com     (public)
+```
+
+Set `PORTLESS_CLOUDFLARE=1` in your shell profile or `.env` to enable it by default when portless runs an app. `portless list` shows both local and Cloudflare URLs. The tunnel is cleaned up automatically when the app exits.
+
+Requires only the [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) CLI to be installed. Quick tunnel URLs (`*.trycloudflare.com`) are meant for testing — they rotate between runs and may be rate-limited, so they are **not** suitable for stable webhook registration.
+
+### Stable named tunnels (for webhooks)
+
+For a **stable** public hostname on your own domain — the right choice for registering webhooks — add `--hostname`. This provisions a [named Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/) against your own (free) Cloudflare account, so the URL stays the same across runs and stays registered with Stripe/GitHub/etc.
+
+Authorize a domain once (opens a browser, writes `~/.cloudflared/cert.pem`):
+
+```bash
+portless tunnel login
+```
+
+Then run any app with a hostname in that domain:
+
+```bash
+portless myapp --cloudflare --hostname hooks.example.com next dev
+# -> https://myapp.localhost        (local)
+# -> https://hooks.example.com      (stable, public, persists across runs)
+```
+
+`--hostname` implies `--cloudflare`, so `portless myapp --hostname hooks.example.com next dev` is enough. On each run portly reuses the existing tunnel (`portly-<hostname>`) and DNS record instead of recreating them, and ties only the tunnel process to the app — the hostname keeps resolving across restarts.
+
+Set it per-repo in `portless.json` so you never type it:
+
+```json
+{ "name": "myapp", "cloudflare": { "hostname": "hooks.example.com" } }
+```
+
+Manage tunnels with the `tunnel` subcommand:
+
+```bash
+portless tunnel login              # Authorize a domain (one-time)
+portless tunnel list               # List your Cloudflare tunnels
+portless tunnel delete hooks.example.com  # Delete a portly-managed tunnel
+```
+
+Because the tunnel and DNS record persist by design, they are **not** removed when the app stops or by `portless clean` — use `portless tunnel delete` to remove them. Deleting a tunnel leaves its DNS CNAME in place; remove it from the Cloudflare dashboard if you no longer want the hostname to resolve.
+
 ## Commands
 
 ```bash
@@ -353,6 +403,9 @@ portless clean                   # Remove state, CA trust entry, and hosts block
 portless prune                   # Kill orphaned dev servers from crashed sessions
 portless hosts sync              # Add routes to /etc/hosts (fixes Safari)
 portless hosts clean             # Remove portless entries from /etc/hosts
+portless tunnel login            # Authorize a Cloudflare domain (named tunnels)
+portless tunnel list             # List your Cloudflare tunnels
+portless tunnel delete <host>    # Delete a portly-managed named tunnel
 
 # Disable portless (run command directly)
 PORTLESS=0 pnpm dev              # Bypasses proxy, uses default port
@@ -393,6 +446,8 @@ portless service uninstall       # Remove the startup service
 --tailscale                      Share the app on your Tailscale network (tailnet)
 --funnel                         Share the app publicly via Tailscale Funnel
 --ngrok                          Share the app publicly via ngrok
+--cloudflare                     Share the app publicly via a Cloudflare quick tunnel
+--hostname <fqdn>                Stable public hostname for a named Cloudflare tunnel (implies --cloudflare)
 --force                          Kill the existing process and take over its route
 --name <name>                    Use <name> as the app name
 ```
@@ -412,6 +467,8 @@ PORTLESS_SYNC_HOSTS=0            Disable auto-sync of /etc/hosts (on by default)
 PORTLESS_TAILSCALE=1             Share apps on your Tailscale network (same as --tailscale)
 PORTLESS_FUNNEL=1                Share apps publicly via Tailscale Funnel (same as --funnel)
 PORTLESS_NGROK=1                 Share apps publicly via ngrok (same as --ngrok)
+PORTLESS_CLOUDFLARE=1            Share apps publicly via Cloudflare quick tunnel (same as --cloudflare)
+PORTLESS_CLOUDFLARE_HOSTNAME     Stable hostname for a named Cloudflare tunnel (same as --hostname)
 PORTLESS_STATE_DIR=<path>        Override the state directory
 
 # Injected into child processes
@@ -420,10 +477,11 @@ HOST                             Usually 127.0.0.1 (omitted for Expo in LAN mode
 PORTLESS_URL                     Public URL (e.g. https://myapp.localhost)
 PORTLESS_TAILSCALE_URL           Tailscale URL of the app (when --tailscale is active)
 PORTLESS_NGROK_URL               ngrok URL of the app (when --ngrok is active)
+PORTLESS_CLOUDFLARE_URL          Cloudflare tunnel URL of the app (when --cloudflare is active)
 NODE_EXTRA_CA_CERTS              Path to the portless CA (when HTTPS is active)
 ```
 
-> **Reserved names:** `run`, `get`, `alias`, `hosts`, `list`, `trust`, `clean`, `prune`, `proxy`, and `service` are subcommands and cannot be used as app names directly. Use `portless run <cmd>` to infer the name from your project, or `portless --name <name> <cmd>` to force any name including reserved ones.
+> **Reserved names:** `run`, `get`, `alias`, `hosts`, `list`, `trust`, `clean`, `prune`, `proxy`, `service`, and `tunnel` are subcommands and cannot be used as app names directly. Use `portless run <cmd>` to infer the name from your project, or `portless --name <name> <cmd>` to force any name including reserved ones.
 
 ## Uninstall / reset
 
@@ -504,3 +562,4 @@ pnpm format           # Format all files with Prettier
 - macOS, Linux, or Windows
 - Tailscale CLI (optional, for `--tailscale` and `--funnel`)
 - ngrok CLI (optional, for `--ngrok`)
+- cloudflared CLI (optional, for `--cloudflare`)
