@@ -61,7 +61,10 @@ jobs:
   publish:
     name: Publish to npm
     needs: check-release
-    if: needs.check-release.outputs.should_release == 'true'
+    # npm publishing is opt-in: set the repo variable PUBLISH_NPM=true once npm
+    # trusted publishing + the "Release" environment are configured. Until then
+    # this job is skipped and only the GitHub Release (with tarball) is created.
+    if: needs.check-release.outputs.should_release == 'true' && vars.PUBLISH_NPM == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Release
