@@ -4,13 +4,22 @@ declare const __VERSION__: string;
 
 import colors from "./colors.js";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { createSNICallback, ensureCerts, isCATrusted, trustCA, untrustCA } from "./certs.js";
 import { createHttpRedirectServer, createProxyServer } from "./proxy.js";
 import { fixOwnership, formatUrl, isErrnoException, parseHostname } from "./utils.js";
-import { syncHostsFile, cleanHostsFile, shouldAutoSyncHosts } from "./hosts.js";
+import { syncHostsFile, cleanHostsFile, shouldAutoSyncHosts, HOSTS_PATH } from "./hosts.js";
+import {
+  LEGACY_STATE_DIR,
+  DURABLE_STATE_FILES,
+  migrateStateDir,
+  migrateHostsContent,
+  findLegacyEnvLines,
+  suggestEnvReplacement,
+} from "./migrate.js";
 import { FILE_MODE, RouteConflictError, RouteStore } from "./routes.js";
 import {
   ensureTailscaleReady,
@@ -75,6 +84,7 @@ import {
   resolveStateDir,
   spawnCommand,
   augmentedPath,
+  USER_STATE_DIR,
   validateTld,
   waitForProxy,
   writeLanMarker,
@@ -1954,8 +1964,8 @@ ${colors.bold("Skip portly:")}
   PORTLY=0 pnpm dev           # Runs command directly without proxy
 
 ${colors.bold("Reserved names:")}
-  run, get, alias, hosts, list, trust, clean, prune, proxy, service, tunnel are subcommands
-  and cannot be used as app names directly. Use "portly run" to infer the name,
+  run, get, alias, hosts, list, trust, clean, prune, proxy, service, tunnel, migrate are
+  subcommands and cannot be used as app names directly. Use "portly run" to infer the name,
   or "portly --name <name>" to force any name including reserved ones.
 `);
   process.exit(0);
@@ -2334,6 +2344,290 @@ async function handleTunnel(args: string[]): Promise<void> {
   console.error(colors.red(`Error: Unknown tunnel subcommand "${sub}".`));
   console.error(colors.blue("Known subcommands: login, list, delete"));
   process.exit(1);
+}
+
+function printMigrateHelp(): void {
+  console.log(`
+${colors.bold("portly migrate")} - Import an existing portless setup into portly.
+
+portly was renamed from portless. This brings a previous portless install over
+to the new nomenclature: it copies the local CA (so HTTPS keeps working with no
+new trust prompt), takes over the ${HOSTS_DISPLAY} entries, and points out what
+you should update by hand (shell env vars, startup service, project config).
+
+${colors.bold("Usage:")}
+  ${colors.cyan("portly migrate")}              Import ~/.portless state + ${HOSTS_DISPLAY} entries
+  ${colors.cyan("portly migrate --dry-run")}    Show what would change without writing anything
+  ${colors.cyan("portly migrate --cleanup")}    Also remove the old ~/.portless after importing
+  ${colors.cyan("portly migrate --force")}      Overwrite portly state files that already exist
+
+${colors.bold("Imported automatically:")}
+  - Local CA + server certs (HTTPS keeps working; system trust is reused)
+  - Proxy preferences (TLS / TLD / LAN markers)
+  - ${HOSTS_DISPLAY} entries (markers rewritten from portless to portly)
+
+${colors.bold("Advised, never auto-edited:")}
+  - PORTLESS_* environment variables in your shell profile
+  - A portless OS startup service (re-run "portly service install")
+  - portless.json / package.json "portless" config keys
+`);
+}
+
+function readHostsSafe(): string {
+  try {
+    return fs.readFileSync(HOSTS_PATH, "utf-8");
+  } catch {
+    return "";
+  }
+}
+
+function migrateHostsBlockOnDisk(): void {
+  const result = migrateHostsContent(readHostsSafe());
+  if (!result.changed) return;
+  try {
+    fs.writeFileSync(HOSTS_PATH, result.content);
+  } catch (err) {
+    console.error(colors.red(`Failed to update ${HOSTS_DISPLAY}: ${(err as Error).message}`));
+    process.exit(1);
+  }
+}
+
+/** Return the PID of a still-running legacy portless proxy, if any. */
+function detectRunningLegacyProxy(): number | undefined {
+  try {
+    const pid = parseInt(
+      fs.readFileSync(path.join(LEGACY_STATE_DIR, "proxy.pid"), "utf-8").trim(),
+      10
+    );
+    if (!Number.isInteger(pid) || pid <= 0) return undefined;
+    process.kill(pid, 0); // throws if the process is gone
+    return pid;
+  } catch {
+    return undefined;
+  }
+}
+
+function fileExistsSafe(p: string): boolean {
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+}
+
+/** Print things the user must update by hand (we never edit these for them). */
+function printMigrationAdvisories(): void {
+  const home = os.homedir();
+
+  // Shell environment variables.
+  const envHits: { file: string; line: string }[] = [];
+  for (const name of [".zshrc", ".bashrc", ".bash_profile", ".profile"]) {
+    const rc = path.join(home, name);
+    try {
+      for (const line of findLegacyEnvLines(fs.readFileSync(rc, "utf-8"))) {
+        envHits.push({ file: rc, line });
+      }
+    } catch {
+      // rc file missing; skip
+    }
+  }
+  if (envHits.length > 0) {
+    console.log(colors.bold("Shell environment (update by hand):"));
+    for (const { file, line } of envHits.slice(0, 10)) {
+      console.log(
+        `  ${colors.gray(file)}  ${colors.yellow(line)} ${colors.gray("->")} ${colors.green(
+          suggestEnvReplacement(line)
+        )}`
+      );
+    }
+    console.log();
+  }
+
+  // OS startup service.
+  const serviceHints: string[] = [];
+  const launchAgent = path.join(home, "Library", "LaunchAgents", "sh.portless.proxy.plist");
+  if (fileExistsSafe(launchAgent)) serviceHints.push(launchAgent);
+  try {
+    const systemdDir = path.join(home, ".config", "systemd", "user");
+    for (const f of fs.readdirSync(systemdDir)) {
+      if (f.includes("portless")) serviceHints.push(path.join(systemdDir, f));
+    }
+  } catch {
+    // no systemd user dir
+  }
+  if (serviceHints.length > 0) {
+    console.log(colors.bold("Startup service (re-install under portly):"));
+    for (const s of serviceHints) console.log(colors.gray(`  found ${s}`));
+    console.log(
+      `  ${colors.cyan("portly service install")}${colors.gray("   then remove the old portless service")}`
+    );
+    console.log();
+  }
+
+  // Project config in the current directory.
+  const cwd = process.cwd();
+  const cfgHints: string[] = [];
+  if (fileExistsSafe(path.join(cwd, "portless.json"))) {
+    cfgHints.push('portless.json  ->  rename to "portly.json"');
+  }
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf-8")) as unknown;
+    if (pkg && typeof pkg === "object" && "portless" in pkg) {
+      cfgHints.push('package.json "portless" key  ->  rename to "portly"');
+    }
+  } catch {
+    // no package.json here
+  }
+  if (cfgHints.length > 0) {
+    console.log(colors.bold("Project config in this directory:"));
+    for (const h of cfgHints) console.log(colors.gray(`  ${h}`));
+    console.log();
+  }
+}
+
+async function handleMigrate(args: string[]): Promise<void> {
+  if (args.includes("--help") || args.includes("-h")) {
+    printMigrateHelp();
+    process.exit(0);
+  }
+
+  // Internal step: rewrite the hosts block as root (sudo re-exec target).
+  if (args.includes("--hosts-only")) {
+    migrateHostsBlockOnDisk();
+    return;
+  }
+
+  const dryRun = args.includes("--dry-run");
+  const force = args.includes("--force");
+  const cleanup = args.includes("--cleanup");
+
+  const legacyExists = fileExistsSafe(LEGACY_STATE_DIR);
+  const hostsContent = readHostsSafe();
+  const hasLegacyHosts = hostsContent.includes("# portless-start");
+
+  if (!legacyExists && !hasLegacyHosts) {
+    console.log(colors.yellow("No portless setup found to migrate."));
+    console.log(
+      colors.gray(`Looked for ${LEGACY_STATE_DIR} and portless entries in ${HOSTS_DISPLAY}.`)
+    );
+    return;
+  }
+
+  console.log(chalk.blue.bold("\nportly migrate\n"));
+  if (dryRun) console.log(colors.gray("Dry run — no changes will be written.\n"));
+
+  const runningPid = detectRunningLegacyProxy();
+  if (runningPid) {
+    console.warn(
+      colors.yellow(
+        `Warning: a portless proxy (PID ${runningPid}) is still running and may hold port 443.\n` +
+          "Stop it before starting portly.\n"
+      )
+    );
+  }
+
+  // 1. State directory: CA, server certs, proxy preferences.
+  if (legacyExists) {
+    console.log(colors.bold("State files:"));
+    if (dryRun) {
+      const planned = DURABLE_STATE_FILES.filter((f) =>
+        fileExistsSafe(path.join(LEGACY_STATE_DIR, f))
+      );
+      console.log(
+        colors.gray(
+          `  would import ${planned.length} file(s) from ${LEGACY_STATE_DIR} -> ${USER_STATE_DIR}`
+        )
+      );
+      for (const f of planned) console.log(colors.gray(`    ${f}`));
+    } else {
+      const r = migrateStateDir(LEGACY_STATE_DIR, USER_STATE_DIR, { force });
+      if (r.copied.length > 0) {
+        console.log(colors.green(`  imported to ${USER_STATE_DIR}: ${r.copied.join(", ")}`));
+      }
+      if (r.skipped.length > 0) {
+        console.log(
+          colors.yellow(`  skipped (already present, use --force): ${r.skipped.join(", ")}`)
+        );
+      }
+      if (r.copied.length === 0 && r.skipped.length === 0) {
+        console.log(colors.gray("  nothing to import"));
+      }
+      if (r.copied.includes("ca.pem")) {
+        console.log(colors.gray("  CA imported — HTTPS trust is reused; no new trust prompt."));
+      }
+    }
+    console.log();
+  }
+
+  // 2. /etc/hosts entries.
+  if (hasLegacyHosts) {
+    const preview = migrateHostsContent(hostsContent);
+    console.log(colors.bold(`${HOSTS_DISPLAY} entries:`));
+    console.log(
+      colors.gray(
+        `  ${preview.hostnames.length} hostname(s) move under portly markers: ${
+          preview.hostnames.join(", ") || "(none)"
+        }`
+      )
+    );
+    if (!dryRun) {
+      if (isWindows || process.getuid?.() === 0) {
+        migrateHostsBlockOnDisk();
+        console.log(colors.green("  done"));
+      } else {
+        console.log(
+          colors.yellow(
+            `  Updating ${HOSTS_DISPLAY} requires elevated privileges. Requesting sudo...`
+          )
+        );
+        const result = spawnSync(
+          "sudo",
+          [
+            "env",
+            ...collectPortlyEnvArgs(),
+            process.execPath,
+            getEntryScript(),
+            "migrate",
+            "--hosts-only",
+          ],
+          { stdio: "inherit" }
+        );
+        if (result.status === 0) console.log(colors.green("  done"));
+        else
+          console.error(
+            colors.red(`  Failed to update ${HOSTS_DISPLAY}. Run: sudo portly migrate --hosts-only`)
+          );
+      }
+    }
+    console.log();
+  }
+
+  // 3. Things we will not edit for you.
+  printMigrationAdvisories();
+
+  // 4. Optional cleanup of the old state dir.
+  if (legacyExists && !dryRun) {
+    if (cleanup) {
+      try {
+        fs.rmSync(LEGACY_STATE_DIR, { recursive: true, force: true });
+        console.log(colors.green(`Removed old state directory ${LEGACY_STATE_DIR}.`));
+      } catch (err) {
+        console.warn(
+          colors.yellow(`Could not remove ${LEGACY_STATE_DIR}: ${(err as Error).message}`)
+        );
+      }
+    } else {
+      console.log(
+        colors.gray(`Old state kept at ${LEGACY_STATE_DIR}. Re-run with --cleanup to remove it.`)
+      );
+    }
+  }
+
+  console.log(
+    dryRun
+      ? colors.gray("\nDry run complete. Re-run without --dry-run to apply.\n")
+      : colors.green("\nMigration complete. Try: portly list\n")
+  );
 }
 
 async function handleGet(args: string[]): Promise<void> {
@@ -4021,7 +4315,8 @@ async function main() {
         args[0] !== "proxy" &&
         args[0] !== "clean" &&
         args[0] !== "service" &&
-        args[0] !== "tunnel"))
+        args[0] !== "tunnel" &&
+        args[0] !== "migrate"))
   ) {
     const parsed = isRunCommand ? parseRunArgs(args) : parseAppArgs(args);
     let commandArgs = parsed.commandArgs;
@@ -4096,6 +4391,10 @@ async function main() {
     }
     if (args[0] === "tunnel") {
       await handleTunnel(args);
+      return;
+    }
+    if (args[0] === "migrate") {
+      await handleMigrate(args);
       return;
     }
   }

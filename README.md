@@ -406,6 +406,8 @@ portly hosts clean             # Remove portly entries from /etc/hosts
 portly tunnel login            # Authorize a Cloudflare domain (named tunnels)
 portly tunnel list             # List your Cloudflare tunnels
 portly tunnel delete <host>    # Delete a portly-managed named tunnel
+portly migrate                 # Import an existing portless setup (CA, hosts, advice)
+portly migrate --dry-run       # Preview the migration without writing anything
 
 # Disable portly (run command directly)
 PORTLY=0 pnpm dev              # Bypasses proxy, uses default port
@@ -481,7 +483,23 @@ PORTLY_CLOUDFLARE_URL          Cloudflare tunnel URL of the app (when --cloudfla
 NODE_EXTRA_CA_CERTS              Path to the portly CA (when HTTPS is active)
 ```
 
-> **Reserved names:** `run`, `get`, `alias`, `hosts`, `list`, `trust`, `clean`, `prune`, `proxy`, `service`, and `tunnel` are subcommands and cannot be used as app names directly. Use `portly run <cmd>` to infer the name from your project, or `portly --name <name> <cmd>` to force any name including reserved ones.
+> **Reserved names:** `run`, `get`, `alias`, `hosts`, `list`, `trust`, `clean`, `prune`, `proxy`, `service`, `tunnel`, and `migrate` are subcommands and cannot be used as app names directly. Use `portly run <cmd>` to infer the name from your project, or `portly --name <name> <cmd>` to force any name including reserved ones.
+
+## Migrating from portless
+
+portly was previously named **portless**. If you used portless before, `portly migrate` imports your existing setup so HTTPS keeps working without a fresh trust prompt:
+
+```bash
+portly migrate --dry-run   # preview — shows what would change, writes nothing
+portly migrate             # import ~/.portless state + /etc/hosts entries
+portly migrate --cleanup   # ...and remove the old ~/.portless afterwards
+```
+
+**Imported automatically:** the local CA + server certs (system trust is reused — no new sudo prompt on macOS, where trust is verified by certificate content), proxy preferences, and `/etc/hosts` entries (the managed block's markers are rewritten from portless to portly, preserving your hostnames).
+
+**Left for you (detected and advised, never auto-edited):** `PORTLESS_*` environment variables in your shell profile (rename to `PORTLY_*`), a portless OS startup service (re-run `portly service install`), and `portless.json` / `package.json` `"portless"` config keys (rename to `portly`). Runtime files (routes, pids, logs) are intentionally not imported.
+
+After migrating you can drop the old portless trust entry with `portly clean`, which now also removes the inherited `portless Local CA`.
 
 ## Uninstall / reset
 

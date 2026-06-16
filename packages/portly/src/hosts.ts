@@ -4,7 +4,7 @@ import * as path from "node:path";
 
 const isWindows = process.platform === "win32";
 
-const HOSTS_PATH = isWindows
+export const HOSTS_PATH = isWindows
   ? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "drivers", "etc", "hosts")
   : "/etc/hosts";
 const MARKER_START = "# portly-start";

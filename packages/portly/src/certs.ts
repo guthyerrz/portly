@@ -18,6 +18,13 @@ const EXPIRY_BUFFER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 /** Common Name used for the portly local CA. */
 const CA_COMMON_NAME = "portly Local CA";
 
+/**
+ * Common Name used by the pre-rename `portless` CA. `portly migrate` reuses an
+ * inherited portless CA as-is, so cleanup must also target this legacy name to
+ * fully remove it from the trust store later.
+ */
+const LEGACY_CA_COMMON_NAME = "portless Local CA";
+
 /** openssl command timeout (ms). */
 const OPENSSL_TIMEOUT_MS = 15_000;
 
@@ -989,8 +996,10 @@ function untrustCAMacOS(caCertPath: string): { removed: boolean; error?: string 
   // matching certs are removed from each keychain.
   const keychains = [loginKeychainPath(), "/Library/Keychains/System.keychain"];
   for (const kc of keychains) {
-    for (let i = 0; i < 20; i++) {
-      if (!tryExec(["delete-certificate", "-c", CA_COMMON_NAME, kc])) break;
+    for (const cn of [CA_COMMON_NAME, LEGACY_CA_COMMON_NAME]) {
+      for (let i = 0; i < 20; i++) {
+        if (!tryExec(["delete-certificate", "-c", cn, kc])) break;
+      }
     }
   }
 
@@ -1027,18 +1036,21 @@ function untrustCALinux(stateDir: string): { removed: boolean; error?: string } 
   let deletedAny = false;
 
   for (const config of Object.values(LINUX_CA_TRUST_CONFIGS)) {
-    const dest = path.join(config.certDir, "portly-ca.crt");
-    try {
-      if (fileExists(dest)) {
-        const ours = fs.readFileSync(path.join(stateDir, CA_CERT_FILE), "utf-8").trim();
-        const installed = fs.readFileSync(dest, "utf-8").trim();
-        if (ours === installed) {
-          fs.unlinkSync(dest);
-          deletedAny = true;
+    // Include the legacy `portless-ca.crt` so an inherited CA is cleaned too.
+    for (const fileName of ["portly-ca.crt", "portless-ca.crt"]) {
+      const dest = path.join(config.certDir, fileName);
+      try {
+        if (fileExists(dest)) {
+          const ours = fs.readFileSync(path.join(stateDir, CA_CERT_FILE), "utf-8").trim();
+          const installed = fs.readFileSync(dest, "utf-8").trim();
+          if (ours === installed) {
+            fs.unlinkSync(dest);
+            deletedAny = true;
+          }
         }
+      } catch (err: unknown) {
+        errors.push(err instanceof Error ? err.message : String(err));
       }
-    } catch (err: unknown) {
-      errors.push(err instanceof Error ? err.message : String(err));
     }
   }
 
